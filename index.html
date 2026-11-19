@@ -761,16 +761,23 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
     if (best !== null && best >= P.idx - 2) setIdx(best);
   }
   const toWords = text => (text.match(/\S+/g) || []).map(raw => ({ raw, n: norm(raw) })).filter(w => w.n);
-  function onPartial(text) { partialTail = toWords(text); follow(); }
-  function onFinal(text) { finalTail = finalTail.concat(toWords(text)).slice(-12); partialTail = []; follow(); }
+  function markWord() {
+    if (!hy.on) return; hy.lastWord = performance.now();
+    if (!hy.words) { hy.words = true; setStatus('Chế độ thông minh: đang nhận từng chữ bằng mic của máy, video ghi tiếng bằng mic đã chọn.', 'live'); }
+  }
+  function onPartial(text) { partialTail = toWords(text); follow(); markWord(); }
+  function onFinal(text) { finalTail = finalTail.concat(toWords(text)).slice(-12); partialTail = []; follow(); markWord(); }
 
   // Phones (Android especially) will not let speech recognition use the mic while the camera records.
   // While recording on a phone, follow the speaking rhythm from the recording mic instead.
   const rhythm = { on: false, fidx: 0, floor: null, last: 0, speaking: false };
+  // smart mode: try word recognition on the phone's own mic while the chosen mic records
+  const hy = { on: false, lastWord: 0, flatSince: 0, words: false };
   function startRhythm() {
     if (!meter || !meter.an) startMeter(cam.stream);
     rhythm.on = true; rhythm.fidx = P.idx; rhythm.floor = null; rhythm.last = 0;
     voiceOn = true; markVoice();
+    if (hasWebSpeech) { hy.on = true; hy.lastWord = 0; hy.flatSince = 0; hy.words = false; startWebSpeech(true); }
     setStatus('Đang quay: chữ chạy khi bạn nói và dừng khi bạn ngừng, theo nhịp ' + S.wpm + ' từ/phút (bấm − + để chỉnh). Điện thoại không cho nhận từng chữ trong lúc quay.', 'live');
   }
   function rhythmStep(now, dt) {
@@ -781,8 +788,18 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
     if (rhythm.floor === null) rhythm.floor = rms;
     else rhythm.floor = rms < rhythm.floor ? rhythm.floor * 0.9 + rms * 0.1 : rhythm.floor * 0.9995 + rms * 0.0005;
     if (rms > Math.max(rhythm.floor * 3, 0.015)) rhythm.last = now;
+    if (hy.on && now - hy.lastWord < 3000) {
+      // words are arriving: make sure the recording still has sound
+      if (rms < 0.0015) { hy.flatSince = hy.flatSince || now; } else hy.flatSince = 0;
+      if (hy.flatSince && now - hy.flatSince > 2500) {
+        hy.on = false; if (rec) { const r = rec; rec = null; try { r.abort ? r.abort() : r.stop(); } catch (e) {} }
+        const m = 'Máy này tắt tiếng video khi nhận giọng, nên app đã tắt nhận từng chữ để giữ tiếng. Chữ vẫn chạy theo nhịp nói.';
+        setStatus(m, 'warn'); toast(m);
+      }
+    }
     const speaking = now - rhythm.last < 450;
     if (speaking !== rhythm.speaking) { rhythm.speaking = speaking; $('heard').textContent = speaking ? '🔊 Đang nói, chữ đang chạy' : '⏸ Ngừng nói, chữ dừng'; }
+    if (hy.on && now - hy.lastWord < 2000) { rhythm.fidx = P.idx; return; } // word tracking leads
     if (speaking) {
       rhythm.fidx += S.wpm / 60 * dt;
       const i = Math.floor(rhythm.fidx);
@@ -834,9 +851,9 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.platform || ''));
   const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.platform || ''));
   let recTimer = 0, recWatch = 0;
-  function startWebSpeech() {
+  function startWebSpeech(hybrid) {
     const R = window.SpeechRecognition || window.webkitSpeechRecognition;
-    voiceOn = true; markVoice(); setStatus('Đang bật micro để nghe…');
+    voiceOn = true; markVoice(); if (!hybrid) setStatus('Đang bật micro để nghe…');
     const run = () => {
       if (!voiceOn) return;
       let r;
@@ -845,7 +862,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
       r.lang = 'vi-VN';
       // phones handle short sessions far better than one long "continuous" session
       r.continuous = !isMobile; r.interimResults = true; r.maxAlternatives = 1;
-      r.onstart = () => { clearTimeout(recWatch); if (rec === r) setStatus('Đang nghe tiếng Việt. Cứ đọc tự nhiên, chữ sẽ chạy theo.', 'live'); };
+      r.onstart = () => { clearTimeout(recWatch); if (rec === r && !hybrid) setStatus('Đang nghe tiếng Việt. Cứ đọc tự nhiên, chữ sẽ chạy theo.', 'live'); };
       r.onresult = e => {
         let interim = '';
         for (let k = e.resultIndex; k < e.results.length; k++) {
@@ -859,6 +876,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
         const err = e.error;
         if (err === 'no-speech' || err === 'aborted') return; // onend restarts
         rec = null;
+        if (hybrid) { hy.on = false; setStatus('Máy này không cho nhận từng chữ trong lúc quay. Chữ chạy theo nhịp nói (bấm − + để chỉnh nhịp).', 'live'); return; }
         if (err === 'not-allowed') voiceFail('not_granted');
         else if (err === 'service-not-allowed') voiceFail(isIOS ? 'ios_siri' : 'not_granted');
         else if (err === 'audio-capture') voiceFail('audio_capture');
@@ -866,20 +884,20 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
         else voiceFail(err);
       };
       r.onend = () => {
-        if (rec !== r || !voiceOn) return;
+        if (rec !== r || !voiceOn || (hybrid && !hy.on)) return;
         clearTimeout(recTimer); recTimer = setTimeout(run, 120); // keep listening
       };
       // Newer Chrome can listen on the same mic track the camera is recording (and the mic you picked)
       const track = cam.stream && cam.stream.getAudioTracks()[0];
-      try { if (track && track.readyState === 'live') r.start(track); else r.start(); }
+      try { if (!hybrid && track && track.readyState === 'live') r.start(track); else r.start(); }
       catch (e) { try { r.start(); } catch (e2) { rec = null; voiceFail('start'); return; } }
     };
     clearTimeout(recWatch);
-    recWatch = setTimeout(() => { if (voiceOn && !/Đang nghe/.test($('status').textContent)) setStatus('Micro chưa bật lên được để nghe. Thử tắt camera rồi bấm "Bắt đầu nghe" lại, hoặc kiểm tra quyền micro của trình duyệt.', 'warn'); }, 5000);
+    if (!hybrid) recWatch = setTimeout(() => { if (voiceOn && !/Đang nghe/.test($('status').textContent)) setStatus('Micro chưa bật lên được để nghe. Thử tắt camera rồi bấm "Bắt đầu nghe" lại, hoặc kiểm tra quyền micro của trình duyệt.', 'warn'); }, 5000);
     run();
   }
   function stopVoice() {
-    rhythm.on = false;
+    rhythm.on = false; hy.on = false;
     clearTimeout(recTimer); clearTimeout(recWatch);
     if (rec) { const r = rec; rec = null; try { r.abort ? r.abort() : r.stop(); } catch (e) {} }
     if (dict && dict.active()) dict.stop().catch(() => {});
