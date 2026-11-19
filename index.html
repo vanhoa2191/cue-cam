@@ -639,6 +639,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
       if (P.playing) { P.pos += speedPx() * dt; P.elapsed += dt; if (P.pos >= P.maxPos) setPlay(false); }
     } else {
       if (voiceActive()) P.elapsed += dt;
+      rhythmStep(now, dt);
       const diff = P.target - P.pos;
       if (Math.abs(diff) > 0.5) P.pos += diff * Math.min(1, dt * 3.2);
     }
@@ -686,6 +687,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
       spans[k].classList.toggle('read', k < i); spans[k].classList.toggle('cur', k === i);
     }
     P.idx = i;
+    if (manual) rhythm.fidx = i;
     if (!manual) P.target = P.tops[Math.min(i, P.tops.length - 1)] || 0;
   }
   function resetHighlights() { if (!P.spans) return; P.spans.forEach((s, k) => { s.classList.toggle('read', k < P.idx); s.classList.toggle('cur', k === P.idx); }); }
@@ -728,8 +730,34 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
   function onPartial(text) { partialTail = toWords(text); follow(); }
   function onFinal(text) { finalTail = finalTail.concat(toWords(text)).slice(-12); partialTail = []; follow(); }
 
+  // Phones (Android especially) will not let speech recognition use the mic while the camera records.
+  // While recording on a phone, follow the speaking rhythm from the recording mic instead.
+  const rhythm = { on: false, fidx: 0, floor: null, last: 0, speaking: false };
+  function startRhythm() {
+    if (!meter || !meter.an) startMeter(cam.stream);
+    rhythm.on = true; rhythm.fidx = P.idx; rhythm.floor = null; rhythm.last = 0;
+    voiceOn = true; markVoice();
+    setStatus('Đang quay: chữ chạy khi bạn nói và dừng khi bạn ngừng, theo nhịp ' + S.wpm + ' từ/phút (bấm − + để chỉnh). Điện thoại không cho nhận từng chữ trong lúc quay.', 'live');
+  }
+  function rhythmStep(now, dt) {
+    if (!rhythm.on || !meter || !meter.an) return;
+    const buf = meter.buf; meter.an.getByteTimeDomainData(buf);
+    let sum = 0; for (let k = 0; k < buf.length; k++) { const v = (buf[k] - 128) / 128; sum += v * v; }
+    const rms = Math.sqrt(sum / buf.length);
+    if (rhythm.floor === null) rhythm.floor = rms;
+    else rhythm.floor = rms < rhythm.floor ? rhythm.floor * 0.9 + rms * 0.1 : rhythm.floor * 0.9995 + rms * 0.0005;
+    if (rms > Math.max(rhythm.floor * 3, 0.015)) rhythm.last = now;
+    const speaking = now - rhythm.last < 450;
+    if (speaking !== rhythm.speaking) { rhythm.speaking = speaking; $('heard').textContent = speaking ? '🔊 Đang nói, chữ đang chạy' : '⏸ Ngừng nói, chữ dừng'; }
+    if (speaking) {
+      rhythm.fidx += S.wpm / 60 * dt;
+      const i = Math.floor(rhythm.fidx);
+      if (i > P.idx && i <= P.words.length) setIdx(i);
+    }
+  }
   function startVoice() {
     finalTail = []; partialTail = []; resetHighlights(); P.target = P.pos;
+    if (cam.stream && isMobile) return startRhythm();
     if (hasWebSpeech && !inFrame) return startWebSpeech();
     if (dict) {
       setStatus('Đang bật micro…');
@@ -764,7 +792,10 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
   function markVoice() {
     $('hPlay').textContent = voiceOn ? '■ Ngừng nghe' : '🎙 Bắt đầu nghe';
     $('hPlay').classList.toggle('listening', voiceOn);
-    if (!voiceOn) showHud();
+    const rh = voiceOn && rhythm.on;
+    $('autoCtl').style.display = (S.mode === 'auto' || rh) ? 'inline-flex' : 'none';
+    if (rh) $('speedOut').textContent = 'Nhịp ' + S.wpm + ' từ/phút'; else $('speedOut').textContent = 'Tốc độ ' + S.speed;
+    if (!voiceOn) { showHud(); $('heard').textContent = ''; }
   }
   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.platform || ''));
   const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.platform || ''));
@@ -814,6 +845,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
     run();
   }
   function stopVoice() {
+    rhythm.on = false;
     clearTimeout(recTimer); clearTimeout(recWatch);
     if (rec) { const r = rec; rec = null; try { r.abort ? r.abort() : r.stop(); } catch (e) {} }
     if (dict && dict.active()) dict.stop().catch(() => {});
@@ -921,7 +953,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
       const AC = window.AudioContext || window.webkitAudioContext; if (!AC || !stream.getAudioTracks().length) return;
       const ctx = new AC(), src = ctx.createMediaStreamSource(stream), an = ctx.createAnalyser(); an.fftSize = 512; src.connect(an);
       const buf = new Uint8Array(an.fftSize), bar = $('micLevel').firstElementChild;
-      meter = { ctx, raf: 0 };
+      meter = { ctx, raf: 0, an, buf };
       const loop = () => {
         an.getByteTimeDomainData(buf); let peak = 0;
         for (let k = 0; k < buf.length; k++) peak = Math.max(peak, Math.abs(buf[k] - 128));
@@ -1006,7 +1038,11 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
   $('cRec').onclick = () => {
     if (cam.rec) { stopRec(); return; }
     // voice dictation must start inside the click, so start listening first, then count down
-    if (S.mode === 'voice' && !voiceActive()) startVoice();
+    if (S.mode === 'voice') {
+      // on phones the recognizer cannot share the mic with the recording: switch to rhythm following
+      if (voiceActive() && isMobile && !rhythm.on) stopVoice();
+      if (!voiceActive()) startVoice();
+    }
     if (S.count) countdown(startRec); else startRec();
   };
   $('cTakes').onclick = () => { renderTakes(); $('takes').classList.add('on'); };
@@ -1017,7 +1053,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
   $('modeAuto').onclick = () => setMode('auto');
   $('modeVoice').onclick = () => setMode('voice');
   $('hPlay').onclick = () => togglePlay();
-  const speed = d => { S.speed = Math.max(1, Math.min(30, S.speed + d)); saveSettings(); syncSettingsUI(); applyLook(); showHud(); };
+  const speed = d => { if (rhythm.on) { S.wpm = Math.max(60, Math.min(260, S.wpm + d * 10)); saveSettings(); $('speedOut').textContent = 'Nhịp ' + S.wpm + ' từ/phút'; showHud(); return; } S.speed = Math.max(1, Math.min(30, S.speed + d)); saveSettings(); syncSettingsUI(); applyLook(); showHud(); };
   const fontBy = d => { const ratio = P.pos / (content.scrollHeight || 1); S.font = Math.max(24, Math.min(140, S.font + d)); saveSettings(); syncSettingsUI(); applyLook(); P.pos = ratio * content.scrollHeight; P.target = S.mode === 'voice' ? (P.tops[P.idx] || 0) : P.pos; place(); showHud(); };
   $('hSlower').onclick = () => speed(-1);
   $('hFaster').onclick = () => speed(1);
