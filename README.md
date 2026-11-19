@@ -14,3 +14,4 @@ Mở: https://vanhoa2191.github.io/cue-cam/
 Toàn bộ app nằm trong `index.html` (cộng thư viện trong `lib/`), không cần build.
 
 - Ghi âm MP3 dùng [lamejs](https://github.com/zhuker/lamejs) (LGPL-3.0), file gốc ở `lib/lame.min.js`.
+- Lọc ồn chế độ Studio dùng RNNoise qua [@sapphi-red/web-noise-suppressor](https://github.com/sapphi-red/web-noise-suppressor) (MIT), file ở `lib/ns/`.
