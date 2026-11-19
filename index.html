@@ -167,7 +167,9 @@ input[type=range] { width: 100%; accent-color: var(--cue); }
 @keyframes blink { 50% { opacity: .2; } }
 .seg { display: inline-flex; border: 1px solid #333; border-radius: 8px; overflow: hidden; }
 .seg button { background: rgba(30,30,30,.9); border: 0; padding: 7px 12px; cursor: pointer; color: #bbb; }
-.seg button[aria-pressed=true] { background: #3a2c12; color: var(--cue); }
+.seg button[aria-pressed=true] { background: var(--cue); color: #1b1307; font-weight: 600; }
+.seg button[aria-pressed=false] { color: #9a9a9a; }
+#prompter.live.vmode #hPlay { display: none; }
 #speedOut { min-width: 3.5em; text-align: center; }
 #status { font-size: 13px; color: #aaa; }
 #status.warn { color: var(--cue); }
@@ -460,8 +462,9 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
   let currentId = store.get('current', scripts[0].id);
   if (!scripts.find(s => s.id === currentId)) currentId = scripts[0].id;
 
-  const DEF = { camFont: (window.innerWidth || 1000) < 700 ? 24 : 40, camArea: 65, micId: '', font: (window.innerWidth || 1000) < 700 ? 34 : 56, lh: 1.5, width: 80, line: 12, speed: 8, color: '#f5f2ea', center: false, mirrorX: false, mirrorY: false, shade: true, count: true, wpm: 130, mode: 'auto' };
+  const DEF = { camFont: (window.innerWidth || 1000) < 700 ? 24 : 40, camArea: 65, micId: '', font: (window.innerWidth || 1000) < 700 ? 34 : 56, lh: 1.5, width: 80, line: 12, speed: 8, color: '#f5f2ea', center: false, mirrorX: false, mirrorY: false, shade: true, count: true, wpm: 130, mode: 'voice' };
   const S = Object.assign({}, DEF, store.get('settings', {}));
+  if (!S.v2) { S.mode = 'voice'; S.v2 = 1; } // 2026-11-19: voice-follow became the default
   var camActive = false;
   const FS = () => camActive ? S.camFont : S.font; // font size on the prompter stage
   if (!S.v2) { if (S.line === 30) S.line = 12; S.v2 = 1; }
@@ -960,7 +963,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
     $('modeAuto').setAttribute('aria-pressed', String(m === 'auto'));
     $('modeVoice').setAttribute('aria-pressed', String(m === 'voice'));
     $('autoCtl').style.display = m === 'auto' ? 'inline-flex' : 'none';
-    content.classList.toggle('voice', m === 'voice');
+    content.classList.toggle('voice', m === 'voice'); $('prompter').classList.toggle('vmode', m === 'voice');
     $('heard').textContent = '';
     if (m === 'voice') {
       setPlay(false); P.target = P.pos; setIdx(wordAtPos(P.pos + 1), true); markVoice();
@@ -1116,7 +1119,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
       camActive = true; applyLook();
       refreshMics(); startMeter(stream);
       measure(); place(); showHud();
-      setStatus(cam.facing === 'user' ? 'Camera trước. Đặt điện thoại để chữ nằm sát ống kính, mắt sẽ gần như nhìn thẳng.' : 'Camera sau.');
+      setStatus((cam.facing === 'user' ? 'Camera trước, đặt chữ sát ống kính.' : 'Camera sau.') + (S.mode === 'voice' ? ' Bấm nút đỏ: đếm 3 giây rồi vừa quay vừa chạy chữ theo giọng.' : ' Bấm nút đỏ: đếm 3 giây rồi vừa quay vừa chạy chữ.'));
       return true;
     } catch (err) {
       const n = err && err.name;
@@ -1138,7 +1141,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
       });
       cam.stream = stream; $('prompter').classList.add('live'); $('cOff').textContent = 'Tắt ghi âm';
       refreshMics(); startMeter(stream); showHud();
-      setStatus('Chế độ ghi âm: bấm nút đỏ để thu giọng, dừng lại sẽ lưu thành file MP3.');
+      setStatus('Ghi âm: bấm nút đỏ để thu' + (S.mode === 'voice' ? ', chữ chạy theo giọng' : '') + '. Dừng lại sẽ lưu thành file MP3.');
       return true;
     } catch (err) {
       const n = err && err.name;
@@ -1335,7 +1338,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
   $('hTop').onclick = () => { P.pos = 0; P.target = 0; P.elapsed = 0; if (S.mode === 'voice') { P.idx = 0; resetHighlights(); setIdx(0, true); } place(); };
   $('hFull').onclick = () => { const el = $('prompter'); if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); else if (el.requestFullscreen) el.requestFullscreen().catch(() => toast('Không bật được toàn màn hình ở đây')); };
   $('hExit').onclick = closePrompter;
-  $('btnStart').onclick = openPrompter;
+  $('btnStart').onclick = () => { openPrompter(); if (S.mode === 'voice' && !voiceActive()) startVoice(); };
   $('btnRecord').onclick = () => { openPrompter(); camOn('video'); renderTakes(); };
   $('btnAudio').onclick = () => { openPrompter(); camOn('audio'); renderTakes(); };
   window.addEventListener('resize', () => { if (P.open) { measure(); place(); } });
