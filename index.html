@@ -99,6 +99,9 @@ aside.settings { border-left: 1px solid var(--line); overflow-y: auto; padding: 
 aside.settings > * { flex-shrink: 0; }
 .settings h3 { margin: 0; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 600; }
 .field { display: grid; gap: 6px; }
+.txt { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 13px; min-width: 0; width: 100%; }
+.drow { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.tk .drv.done { color: var(--ok); border-color: var(--ok); }
 .field .row { display: flex; justify-content: space-between; font-size: 13px; }
 .field .row output { color: var(--cue); font-variant-numeric: tabular-nums; }
 input[type=range] { width: 100%; accent-color: var(--cue); }
@@ -341,6 +344,11 @@ input[type=range] { width: 100%; accent-color: var(--cue); }
       <label class="toggle">Lật gương dọc <input type="checkbox" id="tMirrorY"></label>
       <label class="toggle">Làm tối phần đã đọc <input type="checkbox" id="tShade"></label>
       <label class="toggle">Đếm ngược 3 giây <input type="checkbox" id="tCount"></label>
+      <h3 id="driveH">Google Drive</h3>
+      <div class="field"><div class="row"><label for="sGcid">Mã kết nối Google (Client ID)</label></div><input id="sGcid" class="txt" placeholder="xxxx.apps.googleusercontent.com" autocomplete="off" spellcheck="false"></div>
+      <label class="toggle">Tự tải lên Drive sau khi quay <input type="checkbox" id="tDriveAuto"></label>
+      <div class="drow"><button class="btn small" id="btnDrive" type="button">☁ Kết nối Google Drive</button><span class="meta" id="driveState">Chưa kết nối</span></div>
+      <p class="meta">Video và file ghi âm được tải vào thư mục <b>CueCam</b> trên Drive của bạn, chia theo từng kịch bản. App chỉ thấy các file do chính nó tạo.</p>
       <h3>Phím tắt khi đọc</h3>
       <div class="kbd">
         <kbd>Space</kbd><span>Chạy / dừng (hoặc bật/tắt nghe)</span>
@@ -480,7 +488,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
   let currentId = store.get('current', scripts[0].id);
   if (!scripts.find(s => s.id === currentId)) currentId = scripts[0].id;
 
-  const DEF = { camFont: (window.innerWidth || 1000) < 700 ? 24 : 40, camArea: 65, micId: '', font: (window.innerWidth || 1000) < 700 ? 34 : 56, lh: 1.5, width: 80, line: 12, speed: 8, color: '#f5f2ea', center: false, mirrorX: false, mirrorY: false, shade: true, count: true, wpm: 130, mode: 'voice', voiceFx: 'studio' };
+  const DEF = { camFont: (window.innerWidth || 1000) < 700 ? 24 : 40, camArea: 65, micId: '', font: (window.innerWidth || 1000) < 700 ? 34 : 56, lh: 1.5, width: 80, line: 12, speed: 8, color: '#f5f2ea', center: false, mirrorX: false, mirrorY: false, shade: true, count: true, wpm: 130, mode: 'voice', voiceFx: 'studio', gcid: '', driveAuto: false };
   const S = Object.assign({}, DEF, store.get('settings', {}));
   if (!S.v2) { S.mode = 'voice'; S.v2 = 1; } // 2026-11-19: voice-follow became the default
   var camActive = false;
@@ -1111,7 +1119,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
     else { thumb = document.createElement('video'); thumb.className = 'thumb'; thumb.muted = true; thumb.playsInline = true; thumb.preload = 'metadata'; thumb.src = urlFor(t) + '#t=0.3'; }
     const info = document.createElement('div'); info.className = 'info';
     info.innerHTML = `<input class="nm" aria-label="Tên take"><div class="meta"></div>
-      <div class="acts"><button class="btn small star" type="button" aria-pressed="${!!t.star}">⭐ Take tốt</button><button class="btn small" data-a="play" type="button">▶ Xem</button><button class="btn small primary" data-a="save" type="button">Lưu về máy</button><button class="btn small danger" data-a="del" type="button">Xoá</button></div>`;
+      <div class="acts"><button class="btn small star" type="button" aria-pressed="${!!t.star}">⭐ Take tốt</button><button class="btn small" data-a="play" type="button">▶ Xem</button><button class="btn small primary" data-a="save" type="button">Lưu về máy</button><button class="btn small drv" data-a="drive" type="button">☁ Lên Drive</button><button class="btn small danger" data-a="del" type="button">Xoá</button></div>`;
     const nm = info.querySelector('.nm'); nm.value = t.name;
     if (isAud) info.querySelector('[data-a=play]').textContent = '▶ Nghe';
     info.querySelector('.meta').textContent = `${fmt(t.dur)} · ${fmtSize(t.size)} · ${t.ext.toUpperCase()}${t.wpm ? ' · ' + t.wpm + ' từ/phút' : ''}${t.fx && t.fx !== 'raw' ? ' · ' + (FXN[t.fx] || t.fx) : ''} · ${fmtDate(t.created)}`;
@@ -1123,6 +1131,15 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
       const v = document.createElement(isAud ? 'audio' : 'video'); v.className = 'player' + (isAud ? ' aud' : ''); v.src = urlFor(t); v.controls = true; v.playsInline = true; d.appendChild(v); v.play().catch(() => {});
     };
     info.querySelector('[data-a=save]').onclick = () => saveTake(t);
+    const drv = info.querySelector('[data-a=drive]');
+    const drvShow = () => { if (t.driveLink) { drv.textContent = '✓ Trên Drive'; drv.classList.add('done'); } };
+    drvShow();
+    drv.onclick = () => {
+      if (t.driveLink) { window.open(t.driveLink, '_blank', 'noopener'); return; }
+      if (drv.dataset.busy) return; drv.dataset.busy = '1';
+      driveUpload(t, p => { drv.textContent = '☁ ' + p + '%'; })
+        .then(ok => { delete drv.dataset.busy; if (ok) drvShow(); else drv.textContent = '☁ Lên Drive'; });
+    };
     const del = info.querySelector('[data-a=del]');
     del.onclick = async () => {
       if (!del.dataset.sure) { del.dataset.sure = '1'; del.textContent = 'Chắc chắn xoá?'; setTimeout(() => { delete del.dataset.sure; del.textContent = 'Xoá'; }, 3000); return; }
@@ -1132,6 +1149,100 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
     d.append(thumb, info);
     return d;
   }
+
+  /* ---------------- Google Drive (Google Identity Services + Drive API v3, scope drive.file) ---------------- */
+  const drive = { token: '', exp: 0, client: null, gisP: null, waiters: [] };
+  function loadGis() {
+    if (window.google && google.accounts && google.accounts.oauth2) return Promise.resolve();
+    if (drive.gisP) return drive.gisP;
+    drive.gisP = new Promise((res, rej) => { const sc = document.createElement('script'); sc.src = 'https://accounts.google.com/gsi/client'; sc.async = true; sc.onload = res; sc.onerror = () => { drive.gisP = null; rej(new Error('gis')); }; document.head.appendChild(sc); });
+    return drive.gisP;
+  }
+  function driveState(msg) { $('driveState').textContent = msg; }
+  function driveReady() { return drive.token && Date.now() < drive.exp - 60000; }
+  // must be called from a tap: Google shows its sign-in popup
+  function driveConnect() {
+    const cid = (S.gcid || '').trim();
+    if (!cid) { toast('Chưa có mã kết nối Google. Dán Client ID trong phần Google Drive ở Cài đặt.'); openDriveSettings(); return Promise.resolve(false); }
+    if (driveReady()) return Promise.resolve(true);
+    return new Promise(resolve => {
+      const go = () => {
+        if (!drive.client || drive.client._cid !== cid) {
+          drive.client = google.accounts.oauth2.initTokenClient({ client_id: cid, scope: 'https://www.googleapis.com/auth/drive.file',
+            callback: r => { const w = drive.waiters; drive.waiters = []; if (r && r.access_token) { drive.token = r.access_token; drive.exp = Date.now() + (r.expires_in || 3600) * 1000; driveState('Đã kết nối (phiên ~1 giờ)'); w.forEach(f => f(true)); } else { driveState('Chưa kết nối'); w.forEach(f => f(false)); } },
+            error_callback: e => { const w = drive.waiters; drive.waiters = []; driveState('Chưa kết nối'); toast(e && e.type === 'popup_closed' ? 'Bạn đã đóng cửa sổ đăng nhập Google' : 'Không mở được đăng nhập Google. Cho phép cửa sổ bật lên (pop-up) rồi thử lại.'); w.forEach(f => f(false)); } });
+          drive.client._cid = cid;
+        }
+        drive.waiters.push(resolve);
+        drive.client.requestAccessToken({ prompt: drive.token ? '' : 'consent' });
+      };
+      if (window.google && google.accounts && google.accounts.oauth2) go();
+      else loadGis().then(go, () => { toast('Không tải được dịch vụ đăng nhập Google. Kiểm tra mạng.'); resolve(false); });
+    });
+  }
+  async function gapi(path, opt = {}) {
+    const r = await fetch('https://www.googleapis.com/drive/v3/' + path, Object.assign({}, opt, { headers: Object.assign({ Authorization: 'Bearer ' + drive.token }, opt.headers || {}) }));
+    if (!r.ok) throw new Error('drive ' + r.status);
+    return r.json();
+  }
+  async function driveFolder(name, parent) {
+    const key = 'drivefolder:' + (parent || 'root') + ':' + name, known = store.get(key, '');
+    if (known) { try { const f = await gapi('files/' + known + '?fields=id,trashed'); if (!f.trashed) return f.id; } catch (e) {} }
+    const q = "mimeType='application/vnd.google-apps.folder' and trashed=false and name='" + name.replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "'" + (parent ? " and '" + parent + "' in parents" : '');
+    const found = await gapi('files?fields=files(id)&q=' + encodeURIComponent(q));
+    let id = found.files && found.files[0] && found.files[0].id;
+    if (!id) id = (await gapi('files?fields=id', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, mimeType: 'application/vnd.google-apps.folder', parents: parent ? [parent] : undefined }) })).id;
+    store.set(key, id); return id;
+  }
+  function putChunk(url, blob, start, end, total) {
+    return new Promise((res, rej) => {
+      const x = new XMLHttpRequest(); x.open('PUT', url);
+      x.setRequestHeader('Content-Range', 'bytes ' + start + '-' + (end - 1) + '/' + total);
+      x.onload = () => res(x); x.onerror = () => rej(new Error('net')); x.send(blob.slice(start, end));
+    });
+  }
+  async function driveUpload(t, onProg) {
+    if (!driveReady() && !(await driveConnect())) return false;
+    try {
+      onProg && onProg(0);
+      const root = await driveFolder('CueCam');
+      const sub = await driveFolder((t.scriptTitle || 'Kịch bản').slice(0, 120), root);
+      const name = fileName(t);
+      const init = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&fields=id,webViewLink', {
+        method: 'POST', headers: { Authorization: 'Bearer ' + drive.token, 'Content-Type': 'application/json; charset=UTF-8', 'X-Upload-Content-Type': t.type.split(';')[0], 'X-Upload-Content-Length': String(t.blob.size) },
+        body: JSON.stringify({ name, parents: [sub], description: 'CueCam · ' + (t.name || '') })
+      });
+      if (!init.ok) throw new Error('drive ' + init.status);
+      const url = init.headers.get('Location');
+      const CH = 8 * 1024 * 1024, total = t.blob.size; let pos = 0, x, tries = 0;
+      while (pos < total) {
+        const end = Math.min(total, pos + CH);
+        try { x = await putChunk(url, t.blob, pos, end, total); }
+        catch (e) { if (++tries > 4) throw e; await new Promise(r => setTimeout(r, 1500 * tries)); continue; }
+        if (x.status === 308) { const rg = x.getResponseHeader('Range'); pos = rg ? +rg.split('-')[1] + 1 : end; }
+        else if (x.status === 200 || x.status === 201) { pos = total; break; }
+        else if (x.status >= 500 && ++tries <= 4) { await new Promise(r => setTimeout(r, 1500 * tries)); continue; }
+        else throw new Error('drive ' + x.status);
+        onProg && onProg(Math.round(pos / total * 100));
+      }
+      const f = JSON.parse(x.responseText || '{}');
+      t.driveId = f.id; t.driveLink = f.webViewLink || ('https://drive.google.com/file/d/' + f.id + '/view');
+      patchTake(t.id, { driveId: t.driveId, driveLink: t.driveLink });
+      toast('Đã tải "' + name + '" lên Google Drive, thư mục CueCam'); return true;
+    } catch (e) {
+      const m = String(e && e.message);
+      if (/401/.test(m)) { drive.token = ''; toast('Phiên Google đã hết, bấm ☁ lần nữa để đăng nhập lại'); }
+      else if (/403/.test(m)) toast('Google từ chối tải lên (403). Kiểm tra Google Drive API đã bật trong dự án Google của bạn.');
+      else toast('Tải lên Drive bị lỗi (' + m + '). Kiểm tra mạng rồi thử lại.');
+      return false;
+    }
+  }
+  function openDriveSettings() { try { $('driveH').scrollIntoView({ behavior: 'smooth' }); } catch (e) {} }
+  $('sGcid').value = S.gcid || '';
+  $('sGcid').addEventListener('change', () => { S.gcid = $('sGcid').value.trim(); saveSettings(); drive.client = null; drive.token = ''; driveState(S.gcid ? 'Có mã, bấm Kết nối' : 'Chưa kết nối'); });
+  $('tDriveAuto').checked = !!S.driveAuto;
+  $('tDriveAuto').addEventListener('change', () => { S.driveAuto = $('tDriveAuto').checked; saveSettings(); });
+  $('btnDrive').onclick = () => driveConnect().then(ok => ok && toast('Đã kết nối Google Drive'));
 
   /* ---------------- Library ---------------- */
   async function renderLibrary() {
@@ -1382,6 +1493,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
         const rec = { id: 't' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), scriptId: sc.id, scriptTitle: sc.title, n, name: sc.title + (kind === 'audio' ? ' · Ghi âm ' : ' · Take ') + n, kind, created: Date.now(), dur, size: blob.size, type, ext, wpm, fx: fxUsed, star: false, blob };
         const ok = await storeTake(rec);
         cam.takes.push(rec);
+        if (S.driveAuto && S.gcid) { if (driveReady()) driveUpload(rec).then(() => renderTakes()); else toast('Bấm ☁ Lên Drive trong Các take để tải (cần đăng nhập Google)'); }
         const what = kind === 'audio' ? 'bản ghi âm MP3 ' : 'Take ';
         toast(ok ? 'Đã lưu ' + what + n + ' vào Thư viện' : 'Đã thu ' + what + n + ' (chỉ giữ tạm, hãy Lưu về máy)');
         renderTakes(); refreshTakeCounts();
