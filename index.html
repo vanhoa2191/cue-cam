@@ -246,7 +246,7 @@ input[type=range] { width: 100%; accent-color: var(--cue); }
       <div class="field"><div class="row"><label for="sFont">Cỡ chữ</label><output id="oFont"></output></div><input type="range" id="sFont" min="24" max="140" step="2"></div>
       <div class="field"><div class="row"><label for="sLh">Giãn dòng</label><output id="oLh"></output></div><input type="range" id="sLh" min="1.1" max="2.2" step="0.05"></div>
       <div class="field"><div class="row"><label for="sWidth">Độ rộng cột chữ</label><output id="oWidth"></output></div><input type="range" id="sWidth" min="40" max="100" step="5"></div>
-      <div class="field"><div class="row"><label for="sLine">Vị trí vạch đọc</label><output id="oLine"></output></div><input type="range" id="sLine" min="10" max="60" step="5"></div>
+      <div class="field"><div class="row"><label for="sLine">Vị trí chữ đang đọc (focus)</label><output id="oLine"></output></div><input type="range" id="sLine" min="4" max="60" step="1"></div>
       <div class="field"><div class="row"><label for="sSpeed">Tốc độ cuộn tự động</label><output id="oSpeed"></output></div><input type="range" id="sSpeed" min="1" max="30" step="1"></div>
       <div class="field"><span style="font-size:13px">Màu chữ</span>
         <div class="swatches" id="colors">
@@ -270,6 +270,7 @@ input[type=range] { width: 100%; accent-color: var(--cue); }
         <kbd>V</kbd><span>Chuyển chế độ giọng nói</span>
         <kbd>M</kbd><span>Lật gương ngang</span>
         <kbd>+ −</kbd><span>Cỡ chữ</span>
+        <kbd>[ ]</kbd><span>Đưa focus lên / xuống</span>
         <kbd>Home</kbd><span>Về đầu</span>
         <kbd>Esc</kbd><span>Thoát</span>
       </div>
@@ -305,6 +306,8 @@ input[type=range] { width: 100%; accent-color: var(--cue); }
       <button class="btn small" id="hFontDn" type="button" aria-label="Chữ nhỏ hơn">A−</button>
       <button class="btn small" id="hFontUp" type="button" aria-label="Chữ to hơn">A+</button>
       <button class="btn small" id="hMirror" type="button">Lật gương</button>
+      <button class="btn small" id="hFocusUp" type="button" aria-label="Đưa chữ đang đọc lên trên">Focus ▲</button>
+      <button class="btn small" id="hFocusDn" type="button" aria-label="Đưa chữ đang đọc xuống dưới">Focus ▼</button>
       <button class="btn small" id="hTop" type="button">Về đầu</button>
       <button class="btn small" id="hFull" type="button">Toàn màn hình</button>
       <span class="spacer"></span>
@@ -380,8 +383,9 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
   let currentId = store.get('current', scripts[0].id);
   if (!scripts.find(s => s.id === currentId)) currentId = scripts[0].id;
 
-  const DEF = { micId: '', font: (window.innerWidth || 1000) < 700 ? 34 : 56, lh: 1.5, width: 80, line: 30, speed: 8, color: '#f5f2ea', center: false, mirrorX: false, mirrorY: false, shade: true, count: true, wpm: 130, mode: 'auto' };
+  const DEF = { micId: '', font: (window.innerWidth || 1000) < 700 ? 34 : 56, lh: 1.5, width: 80, line: 12, speed: 8, color: '#f5f2ea', center: false, mirrorX: false, mirrorY: false, shade: true, count: true, wpm: 130, mode: 'auto' };
   const S = Object.assign({}, DEF, store.get('settings', {}));
+  if (!S.v2) { if (S.line === 30) S.line = 12; S.v2 = 1; }
   const saveSettings = () => store.set('settings', S);
 
   const cur = () => scripts.find(s => s.id === currentId);
@@ -541,7 +545,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
     b.setAttribute('aria-pressed', String(b.dataset.c === S.color));
     b.onclick = () => { S.color = b.dataset.c; document.querySelectorAll('#colors button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); saveSettings(); applyLook(); };
   });
-  function syncSettingsUI() { $('sFont').value = S.font; $('oFont').textContent = S.font + ' px'; $('sSpeed').value = S.speed; $('oSpeed').textContent = S.speed; $('tMirrorX').checked = S.mirrorX; }
+  function syncSettingsUI() { $('sLine').value = S.line; $('oLine').textContent = S.line + '% từ trên'; $('sFont').value = S.font; $('oFont').textContent = S.font + ' px'; $('sSpeed').value = S.speed; $('oSpeed').textContent = S.speed; $('tMirrorX').checked = S.mirrorX; }
 
   /* ---------------- Prompter ---------------- */
   const P = { open: false, playing: false, pos: 0, target: 0, maxPos: 0, words: [], tops: [], idx: 0, last: 0, elapsed: 0, hudT: 0 };
@@ -581,7 +585,8 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
   function measure() {
     P.tops = Array.from(P.spans, s => s.offsetTop);
     P.markers = Array.from(content.querySelectorAll('.mk'), m => m.offsetTop);
-    P.lineY = stage.clientHeight * (cam.stream ? Math.min(S.line, 22) : S.line) / 100;
+    const lineH = S.font * S.lh;
+    P.lineY = Math.max(lineH * 0.6, Math.min($('prompter').clientHeight * S.line / 100, stage.clientHeight - lineH));
     P.maxPos = Math.max(0, content.scrollHeight - stage.clientHeight * 0.7);
     const rl = $('readline'); rl.style.top = P.lineY + 'px'; rl.querySelector('.band').style.fontSize = S.font * S.lh + 'px';
     $('shade').style.height = Math.max(0, P.lineY - S.font * S.lh * 0.6) + 'px';
@@ -981,6 +986,9 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
   $('hFontDn').onclick = () => fontBy(-4);
   $('hFontUp').onclick = () => fontBy(4);
   $('hMirror').onclick = () => { S.mirrorX = !S.mirrorX; saveSettings(); syncSettingsUI(); applyLook(); };
+  const focusBy = d => { S.line = Math.max(4, Math.min(60, S.line + d)); saveSettings(); syncSettingsUI(); applyLook(); showHud(); toast('Focus: ' + S.line + '% từ trên xuống'); };
+  $('hFocusUp').onclick = () => focusBy(-3);
+  $('hFocusDn').onclick = () => focusBy(3);
   $('hTop').onclick = () => { P.pos = 0; P.target = 0; P.elapsed = 0; if (S.mode === 'voice') { P.idx = 0; resetHighlights(); setIdx(0, true); } place(); };
   $('hFull').onclick = () => { const el = $('prompter'); if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); else if (el.requestFullscreen) el.requestFullscreen().catch(() => toast('Không bật được toàn màn hình ở đây')); };
   $('hExit').onclick = closePrompter;
@@ -1009,6 +1017,8 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
     else if (k === '+' || k === '=') fontBy(4);
     else if (k === '-' || k === '_') fontBy(-4);
     else if (k === 'f' || k === 'F') $('hFull').click();
+    else if (k === '[') focusBy(-3);
+    else if (k === ']') focusBy(3);
     else if ((k === 'r' || k === 'R') && cam.stream) $('cRec').click();
     else handled = false;
     if (handled) { e.preventDefault(); if (k !== ' ') showHud(); }
