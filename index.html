@@ -155,6 +155,11 @@ input[type=range] { width: 100%; accent-color: var(--cue); }
 #recBadge::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--live); animation: blink 1s infinite; }
 #camBar { display: none; gap: 8px; flex-wrap: wrap; align-items: center; }
 #prompter.cam #camBar { display: flex; }
+.micpick { display: inline-flex; align-items: center; gap: 8px; background: rgba(30,30,30,.9); border: 1px solid #333; border-radius: 8px; padding: 4px 8px; color: #ddd; font-size: 13px; max-width: 100%; }
+.micpick select { background: transparent; border: 0; color: #fff; max-width: 190px; min-width: 0; padding: 4px 0; }
+.micpick select option { background: #111; }
+#micLevel { width: 48px; height: 6px; background: #333; border-radius: 3px; overflow: hidden; flex: none; }
+#micLevel i { display: block; height: 100%; width: 0; background: var(--ok); transition: width .08s; }
 .recbtn { width: 64px; height: 64px; border-radius: 50%; border: 4px solid #fff; background: var(--live); cursor: pointer; flex: none; }
 .recbtn.on { border-radius: 16px; background: var(--live); transform: scale(.82); }
 #takes { position: absolute; inset: auto 0 0 0; max-height: 75%; overflow-y: auto; background: #111; border-top: 1px solid #333; z-index: 6; padding: 16px max(16px, env(safe-area-inset-right, 0px)) calc(16px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); display: none; color: #eee; }
@@ -309,6 +314,7 @@ input[type=range] { width: 100%; accent-color: var(--cue); }
     <div id="camBar">
       <button class="recbtn" id="cRec" type="button" aria-label="Bắt đầu quay"></button>
       <button class="btn small" id="cFlip" type="button">↺ Đổi camera trước/sau</button>
+      <label class="micpick" for="cMic">🎙 Mic <select id="cMic" aria-label="Chọn micro"><option value="">Mặc định</option></select><span id="micLevel" aria-hidden="true"><i></i></span></label>
       <button class="btn small" id="cTakes" type="button">Các take (0)</button>
       <button class="btn small" id="cOff" type="button">Tắt camera</button>
     </div>
@@ -374,7 +380,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
   let currentId = store.get('current', scripts[0].id);
   if (!scripts.find(s => s.id === currentId)) currentId = scripts[0].id;
 
-  const DEF = { font: (window.innerWidth || 1000) < 700 ? 34 : 56, lh: 1.5, width: 80, line: 30, speed: 8, color: '#f5f2ea', center: false, mirrorX: false, mirrorY: false, shade: true, count: true, wpm: 130, mode: 'auto' };
+  const DEF = { micId: '', font: (window.innerWidth || 1000) < 700 ? 34 : 56, lh: 1.5, width: 80, line: 30, speed: 8, color: '#f5f2ea', center: false, mirrorX: false, mirrorY: false, shade: true, count: true, wpm: 130, mode: 'auto' };
   const S = Object.assign({}, DEF, store.get('settings', {}));
   const saveSettings = () => store.set('settings', S);
 
@@ -638,6 +644,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
   }
   function showHud() { P.hudT = performance.now(); $('hud').classList.remove('hide'); }
   $('prompter').addEventListener('pointermove', showHud);
+  $('prompter').addEventListener('pointerdown', showHud);
 
   function nudge(px) {
     P.pos += px; place();
@@ -806,11 +813,19 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: { ideal: cam.facing }, width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 } },
-        audio: { echoCancellation: true, noiseSuppression: true }
+        audio: micConstraint()
+      }).catch(err => {
+        // the saved mic is gone (unplugged): fall back to the default one
+        if (S.micId && err && (err.name === 'OverconstrainedError' || err.name === 'NotFoundError')) {
+          S.micId = ''; saveSettings(); toast('Không thấy micro đã chọn, chuyển về micro mặc định');
+          return navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: cam.facing }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: micConstraint() });
+        }
+        throw err;
       });
       cam.stream = stream; camVideo.srcObject = stream; camVideo.classList.toggle('front', cam.facing === 'user');
       try { await camVideo.play(); } catch (e) {}
       $('prompter').classList.add('cam'); $('hCam').textContent = '🎥 Đang bật camera';
+      refreshMics(); startMeter(stream);
       measure(); place(); showHud();
       setStatus(cam.facing === 'user' ? 'Camera trước. Đặt điện thoại để chữ nằm sát ống kính, mắt sẽ gần như nhìn thẳng.' : 'Camera sau.');
       return true;
@@ -823,11 +838,60 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
     }
   }
   function camOff() {
+    stopMeter();
     if (cam.stream) cam.stream.getTracks().forEach(t => t.stop());
     cam.stream = null; camVideo.srcObject = null;
     $('prompter').classList.remove('cam'); $('hCam').textContent = '🎥 Quay video';
     if (P.open) { measure(); place(); }
   }
+  function micConstraint() {
+    const a = { echoCancellation: true, noiseSuppression: true, autoGainControl: true };
+    if (S.micId) a.deviceId = { exact: S.micId };
+    return a;
+  }
+  async function refreshMics() {
+    const sel = $('cMic');
+    let devs = [];
+    try { devs = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'audioinput'); } catch (e) {}
+    const track = cam.stream && cam.stream.getAudioTracks()[0];
+    const using = track && track.getSettings ? track.getSettings().deviceId : '';
+    sel.innerHTML = '';
+    if (!devs.length) { sel.innerHTML = '<option value="">Mặc định</option>'; return; }
+    devs.forEach((d, i) => {
+      const o = document.createElement('option'); o.value = d.deviceId;
+      o.textContent = d.deviceId === 'default' ? 'Mặc định của máy' : (d.label || 'Micro ' + (i + 1));
+      sel.appendChild(o);
+    });
+    sel.value = devs.some(d => d.deviceId === using) ? using : (S.micId || devs[0].deviceId);
+  }
+  async function switchMic(id) {
+    if (cam.rec) { toast('Dừng quay rồi mới đổi micro được'); refreshMics(); return; }
+    S.micId = id; saveSettings();
+    if (!cam.stream) return;
+    cam.stream.getTracks().forEach(t => t.stop()); cam.stream = null; stopMeter();
+    if (await camOn()) toast('Đã chuyển micro: ' + ($('cMic').selectedOptions[0] || {}).textContent);
+  }
+  let meter = null;
+  function startMeter(stream) {
+    stopMeter();
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext; if (!AC || !stream.getAudioTracks().length) return;
+      const ctx = new AC(), src = ctx.createMediaStreamSource(stream), an = ctx.createAnalyser(); an.fftSize = 512; src.connect(an);
+      const buf = new Uint8Array(an.fftSize), bar = $('micLevel').firstElementChild;
+      meter = { ctx, raf: 0 };
+      const loop = () => {
+        an.getByteTimeDomainData(buf); let peak = 0;
+        for (let k = 0; k < buf.length; k++) peak = Math.max(peak, Math.abs(buf[k] - 128));
+        bar.style.width = Math.min(100, peak / 64 * 100) + '%';
+        meter.raf = requestAnimationFrame(loop);
+      };
+      if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+      loop();
+    } catch (e) { meter = null; }
+  }
+  function stopMeter() { if (!meter) return; cancelAnimationFrame(meter.raf); try { meter.ctx.close(); } catch (e) {} meter = null; $('micLevel').firstElementChild.style.width = '0'; }
+  $('cMic').addEventListener('change', e => switchMic(e.target.value));
+  if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) navigator.mediaDevices.addEventListener('devicechange', () => { if (cam.stream) { refreshMics(); toast('Có thay đổi micro/tai nghe. Chọn lại micro nếu cần.'); } });
   async function flipCam() {
     if (cam.rec) { toast('Dừng quay rồi mới đổi camera được'); return; }
     cam.facing = cam.facing === 'user' ? 'environment' : 'user';
