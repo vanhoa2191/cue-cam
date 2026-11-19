@@ -1,0 +1,6 @@
+onnxruntime-web 1.31.1 (ort.webgpu.min.mjs, ort-wasm-simd-threaded.asyncify.*)
+Copyright (c) Microsoft Corporation. Licensed under the MIT License.
+https://github.com/microsoft/onnxruntime/blob/main/LICENSE
+
+lib/mp/models/modnet_fp16.onnx: MODNet (ZHKKKe/MODNet), Apache License 2.0,
+https://github.com/ZHKKKe/MODNet - one 99-channel conv padded to 100 channels (zero weights) to work around a WebGPU kernel issue.

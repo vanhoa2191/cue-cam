@@ -16,4 +16,4 @@ Toàn bộ app nằm trong `index.html` (cộng thư viện trong `lib/`), khôn
 
 - Ghi âm MP3 dùng [lamejs](https://github.com/zhuker/lamejs) (LGPL-3.0), file gốc ở `lib/lame.min.js`.
 - Lọc ồn chế độ Studio dùng RNNoise qua [@sapphi-red/web-noise-suppressor](https://github.com/sapphi-red/web-noise-suppressor) (MIT), file ở `lib/ns/`.
-- Làm đẹp và phông nền: WebGL trong `lib/beauty.js`; nhận diện người và khuôn mặt bằng [MediaPipe Tasks Vision](https://github.com/google-ai-edge/mediapipe) 1.2.2 (Apache-2.0) chạy trong Web Worker `lib/beauty-worker.js`, file ở `lib/mp/` (selfie segmenter, BlazeFace short range).
+- Làm đẹp và phông nền: WebGL trong `lib/beauty.js`; nhận diện người và khuôn mặt bằng [MediaPipe Tasks Vision](https://github.com/google-ai-edge/mediapipe) 1.2.2 (Apache-2.0) chạy trong Web Worker `lib/beauty-worker.js`, file ở `lib/mp/` (selfie segmenter, BlazeFace short range). Chế độ "Chất lượng cao" của phông nền dùng MODNet (Apache-2.0) qua [ONNX Runtime Web](https://github.com/microsoft/onnxruntime) 1.31.1 (MIT) trên WebGPU, file ở `lib/ort/` và `lib/mp/models/modnet_fp32.onnx`; máy không có WebGPU hoặc chạy chậm tự về chế độ thường.

@@ -7,7 +7,7 @@ self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Pr
 self.addEventListener('fetch', e => {
   const req = e.request, url = new URL(req.url);
   if (req.method !== 'GET' || url.origin !== location.origin) return; // Google, speech, Drive go straight to the network
-  const big = /\.(wasm|tflite|task)$/.test(url.pathname); // large AI files: normal HTTP caching is fine
+  const big = /\.(wasm|tflite|task|onnx)$/.test(url.pathname); // large AI files: normal HTTP caching is fine
   e.respondWith((big ? fetch(req) : fetch(req.mode === 'navigate' ? url.href : req, { cache: 'no-cache' })).then(res => {
     if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(req, copy)).catch(() => {}); }
     return res;

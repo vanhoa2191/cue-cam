@@ -521,6 +521,7 @@ input[type=range] { width: 100%; accent-color: var(--cue); }
       <div class="fxchips" id="fxBgs"></div>
       <label class="fxs" id="fxBlurRow"><span>Độ mờ</span><input type="range" id="fxBlur" min="0" max="100" step="5"><b></b></label>
       <label class="fxs"><span>Viền</span><input type="range" id="fxEdge" min="0" max="100" step="5" aria-label="Viền, trái sắc, phải mềm"><b></b></label>
+      <label class="fxchk" id="fxHqRow"><input type="checkbox" id="fxHq"><span><b>Chất lượng cao</b>: viền tóc, vai thật hơn. Cần máy mạnh có WebGPU (Chrome mới), lần đầu tải khoảng 30 MB. Máy yếu tự về chế độ thường.</span></label>
       <input type="file" id="fxBgFile" accept="image/*" hidden>
     </div>
     <div class="fxfoot"><span class="hint" id="fxStat"></span><label class="fxchk" style="align-items:center"><span>Nhẹ máy</span><input type="checkbox" id="fxLite"></label><button class="btn small" id="fxReset" type="button">Tắt hết</button></div>
@@ -573,12 +574,12 @@ input[type=range] { width: 100%; accent-color: var(--cue); }
 </div>
 <div class="toast" id="toast"></div>
 
-<script src="lib/beauty.js?v=14"></script>
+<script src="lib/beauty.js?v=15"></script>
 <script>
 (() => {
   'use strict';
   const $ = id => document.getElementById(id);
-  const APP_VERSION = '19.11 · 14'; // shown in ⚙ and Liên hệ so Hoà can check the phone has the latest build
+  const APP_VERSION = '19.11 · 15'; // shown in ⚙ and Liên hệ so Hoà can check the phone has the latest build
   const store = {
     get(k, d) { try { const v = localStorage.getItem('cuecam.' + k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
     set(k, v) { try { localStorage.setItem('cuecam.' + k, JSON.stringify(v)); return true; } catch (e) { return false; } }
@@ -1671,6 +1672,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
     $('fxBgs').querySelectorAll('.fxchip').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.id === f.bg)));
     $('fxBlurRow').style.display = f.bg === 'blur' ? '' : 'none';
     $('fxEdge').closest('.fxs').style.display = f.bg === 'none' ? 'none' : '';
+    $('fxHqRow').style.display = f.bg === 'none' ? 'none' : ''; $('fxHq').checked = !!f.hq;
   }
   function fxChip(id, name, bgCss, icon) {
     const b = document.createElement('button'); b.type = 'button'; b.className = 'fxchip'; b.dataset.id = id;
@@ -1679,6 +1681,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
   }
   if (FXB) try {
     FXB.attach(camVideo, fxCanvas, (msg, on) => { $('fxStat').textContent = msg || (on ? '' : 'Chưa bật hiệu ứng nào'); });
+    FXB.onHq((ok, msg) => { if (!ok) toast(msg); });
     FXB.FILTERS.forEach(f => $('fxFilters').appendChild(fxChip(f.id, f.name, f.sw)));
     FXB.LIPS.forEach(l => { const b = document.createElement('button'); b.type = 'button'; b.dataset.id = l.id; b.style.background = l.c; b.title = l.name; b.setAttribute('aria-label', 'Son ' + l.name); $('fxLipCols').appendChild(b); });
     $('fxLipCols').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; S.fx.lipColor = b.dataset.id; if (!S.fx.lip) S.fx.lip = 50; fxSave(); });
@@ -1731,8 +1734,9 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
       toast(a.face ? 'Đã chỉnh tự động theo khuôn mặt. Bạn vẫn kéo lại được từng thanh.' : 'Không thấy rõ khuôn mặt, đã đặt mức vừa phải. Nhìn thẳng camera rồi bấm lại để chỉnh chuẩn hơn.');
     };
     $('fxFace').onchange = e => { S.fx.faceOnly = e.target.checked; fxSave(); };
+    $('fxHq').onchange = e => { S.fx.hq = e.target.checked; fxSave(); };
     $('fxLite').onchange = e => { if (cam.rec) { e.target.checked = !!S.fxLite; toast('Dừng quay rồi mới đổi được'); return; } S.fxLite = e.target.checked; fxSave(); };
-    $('fxReset').onclick = () => { const keep = { fstr: S.fx.fstr, blur: S.fx.blur, edge: S.fx.edge, faceOnly: S.fx.faceOnly, lipColor: S.fx.lipColor }; S.fx = Object.assign({}, FXB.DEF, keep); fxSave(); toast('Đã tắt hết hiệu ứng'); };
+    $('fxReset').onclick = () => { const keep = { fstr: S.fx.fstr, blur: S.fx.blur, edge: S.fx.edge, hq: S.fx.hq, faceOnly: S.fx.faceOnly, lipColor: S.fx.lipColor }; S.fx = Object.assign({}, FXB.DEF, keep); fxSave(); toast('Đã tắt hết hiệu ứng'); };
     $('fxPanel').querySelector('.fxtabs').addEventListener('click', e => {
       const b = e.target.closest('button'); if (!b) return;
       $('fxPanel').querySelectorAll('.fxtabs button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
