@@ -190,6 +190,19 @@ input[type=range] { width: 100%; accent-color: var(--cue); }
 #prompter.cam #shade { display: none !important; }
 #recBadge { position: absolute; top: calc(12px + env(safe-area-inset-top, 0px)); left: max(12px, env(safe-area-inset-left, 0px)); z-index: 5; display: none; align-items: center; gap: 8px; background: rgba(0,0,0,.6); color: #fff; padding: 6px 12px; border-radius: 999px; font-variant-numeric: tabular-nums; font-weight: 600; }
 #recBadge.on { display: inline-flex; }
+#spdBadge { position: absolute; top: calc(12px + env(safe-area-inset-top, 0px)); right: max(12px, env(safe-area-inset-right, 0px)); z-index: 5; display: none; align-items: baseline; gap: 6px; background: rgba(0,0,0,.65); color: #fff; padding: 6px 12px; border-radius: 999px; font-variant-numeric: tabular-nums; font-size: 13px; }
+#spdBadge.on { display: inline-flex; }
+#spdBadge b { font-size: 20px; }
+#spdBadge span { color: #aaa; }
+#spdBadge em { font-style: normal; font-weight: 600; padding-left: 4px; }
+#spdBadge em.slow { color: #9fd2ff; } #spdBadge em.ok { color: var(--ok); } #spdBadge em.fast { color: var(--live); }
+#spdCard { position: absolute; left: 50%; top: 30%; transform: translate(-50%, -50%); z-index: 6; width: min(420px, calc(100% - 32px)); background: #151515; border: 1px solid #333; border-radius: 14px; padding: 16px; color: #eee; display: none; }
+#spdCard.on { display: block; }
+#spdCard h4 { margin: 0 0 8px; font-size: 16px; }
+#spdCard p { margin: 0 0 8px; }
+#spdCard #spdSum { font-size: 15px; }
+#spdCard .acts { display: flex; gap: 8px; flex-wrap: wrap; }
+#hSpd[aria-pressed=true] { border-color: var(--ok); color: var(--ok); }
 #recBadge::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--live); animation: blink 1s infinite; }
 .micpick { display: inline-flex; align-items: center; gap: 8px; background: rgba(30,30,30,.9); border: 1px solid #333; border-radius: 8px; padding: 4px 8px; color: #ddd; font-size: 13px; max-width: 100%; }
 .micpick select { background: transparent; border: 0; color: #fff; max-width: 190px; min-width: 0; padding: 4px 0; }
@@ -349,6 +362,8 @@ input[type=range] { width: 100%; accent-color: var(--cue); }
   <video id="camVideo" playsinline muted autoplay></video>
   <div id="camShade"></div>
   <div id="recBadge">0:00</div>
+  <div id="spdBadge" aria-live="polite"><b id="spdVal">–</b><span>từ/phút</span><em id="spdTag"></em></div>
+  <div id="spdCard" role="dialog" aria-label="Kết quả đo tốc độ nói"><h4>⏱ Tốc độ nói</h4><p id="spdSum"></p><p class="meta" id="spdNote"></p><div class="acts"><button class="btn small primary" id="spdUse" type="button">Dùng làm nhịp chạy chữ</button><button class="btn small" id="spdClose" type="button">Đóng</button></div></div>
   <div id="stage">
     <div id="scroller"><div id="content"></div></div>
     <div id="shade"></div>
@@ -367,6 +382,7 @@ input[type=range] { width: 100%; accent-color: var(--cue); }
       <div class="grp" id="autoCtl"><button class="ib" id="hSlower" type="button" aria-label="Chậm hơn">−</button><span id="speedOut"></span><button class="ib" id="hFaster" type="button" aria-label="Nhanh hơn">+</button></div>
       <div class="grp"><span class="gl">Chữ</span><button class="ib" id="hFontDn" type="button" aria-label="Chữ nhỏ hơn">A−</button><button class="ib" id="hFontUp" type="button" aria-label="Chữ to hơn">A+</button></div>
       <div class="grp"><span class="gl">Dòng đọc</span><button class="ib" id="hFocusUp" type="button" aria-label="Đưa dòng đang đọc lên trên">▲</button><button class="ib" id="hFocusDn" type="button" aria-label="Đưa dòng đang đọc xuống dưới">▼</button></div>
+      <button class="btn small" id="hSpd" type="button" aria-pressed="false">⏱ Đo tốc độ</button>
       <button class="btn small" id="hMore" type="button" aria-expanded="false">⋯ Thêm</button>
     </div>
     <div id="hudMore">
@@ -694,6 +710,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
   }
   function closePrompter() {
     if (cam.rec) stopRec();
+    spdStop(false); $('spdBadge').classList.remove('on'); $('spdCard').classList.remove('on');
     camOff();
     stopVoice(); setPlay(false); P.open = false; $('prompter').classList.remove('on'); releaseWake();
     if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
@@ -730,6 +747,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
       const diff = P.target - P.pos;
       if (Math.abs(diff) > 0.5) P.pos += diff * Math.min(1, dt * 3.2);
     }
+    spdStep(now);
     place();
     $('time').textContent = fmt(P.elapsed);
     if (P.playing || voiceActive()) { if (now - P.hudT > 2500) $('hud').classList.add('hide'); }
@@ -819,7 +837,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
     if (!hy.words) { hy.words = true; setStatus('Chế độ thông minh: đang nhận từng chữ bằng mic của máy, video ghi tiếng bằng mic đã chọn.', 'live'); }
   }
   function onPartial(text) { partialTail = toWords(text); follow(); markWord(); }
-  function onFinal(text) { finalTail = finalTail.concat(toWords(text)).slice(-12); partialTail = []; follow(); markWord(); }
+  function onFinal(text) { const nw = toWords(text); if (spd.on) { spd.lastRecWord = performance.now(); spdAdd(nw.length, spd.lastRecWord, 'rec'); } finalTail = finalTail.concat(nw).slice(-12); partialTail = []; follow(); markWord(); }
 
   // Phones (Android especially) will not let speech recognition use the mic while the camera records.
   // While recording on a phone, follow the speaking rhythm from the recording mic instead.
@@ -858,6 +876,71 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
       const i = Math.floor(rhythm.fidx);
       if (i > P.idx && i <= P.words.length) setIdx(i);
     }
+  }
+  /* ---------- Speaking-speed meter ----------
+     Words come from speech recognition when it runs; otherwise (phones while recording,
+     or auto mode) each Vietnamese word is one syllable, so syllable bursts in the mic level are counted. */
+  const spd = { on: false, manual: false, ev: [], first: 0, last: 0, total: 0, src: '', stream: null, env: 0, floor: null, inPeak: false, peak: 0, lastSyl: 0, lastRecWord: 0 };
+  function spdReset() { Object.assign(spd, { ev: [], first: 0, last: 0, total: 0, src: '', env: 0, floor: null, inPeak: false, peak: 0, lastSyl: 0, lastRecWord: 0 }); $('spdVal').textContent = '–'; $('spdTag').textContent = ''; }
+  function spdAdd(n, now, src) {
+    if (!spd.on || !n) return;
+    spd.ev.push([now, n]); spd.total += n; spd.first = spd.first || now; spd.last = now; spd.src = spd.src && spd.src !== src ? 'mix' : src;
+  }
+  function spdBand(w) { return w < 120 ? ['Chậm', 'slow'] : w > 180 ? ['Nhanh', 'fast'] : ['Vừa', 'ok']; }
+  function spdLive(now) {
+    const W = 15000; while (spd.ev.length && now - spd.ev[0][0] > W) spd.ev.shift();
+    if (!spd.first || now - spd.first < 4000) return null;
+    const n = spd.ev.reduce((a, e) => a + e[1], 0);
+    return Math.round(n / (Math.min(W, now - spd.first) / 60000));
+  }
+  function spdAvg() { const t = spd.last - Math.max(spd.t0 || 0, spd.first - 1500); return t > 3000 ? Math.round(spd.total / (t / 60000)) : null; }
+  function spdStep(now) {
+    if (!spd.on) return;
+    // syllable counting from the mic level, only when recognition is not delivering words
+    if (meter && meter.an && now - spd.lastRecWord > 3000) {
+      const buf = meter.buf; meter.an.getByteTimeDomainData(buf);
+      let sum = 0; for (let k = 0; k < buf.length; k++) { const v = (buf[k] - 128) / 128; sum += v * v; }
+      const rms = Math.sqrt(sum / buf.length);
+      spd.env = spd.env * 0.5 + rms * 0.5;
+      if (spd.floor === null) spd.floor = spd.env;
+      else spd.floor = spd.env < spd.floor ? spd.floor * 0.9 + spd.env * 0.1 : spd.floor * 0.9995 + spd.env * 0.0005;
+      const hi = Math.max(spd.floor * 3.5, 0.02);
+      if (spd.inPeak) { spd.peak = Math.max(spd.peak, spd.env); if (spd.env < spd.peak * 0.6 || spd.env < hi * 0.7) spd.inPeak = false; }
+      else if (spd.env > hi && now - spd.lastSyl > 110) { spd.inPeak = true; spd.peak = spd.env; spd.lastSyl = now; spdAdd(1, now, 'syl'); }
+    }
+    if (!spd.tick || now - spd.tick > 500) {
+      spd.tick = now;
+      const w = spdLive(now);
+      if (w != null) { const b = spdBand(w); $('spdVal').textContent = w; $('spdTag').textContent = b[0]; $('spdTag').className = b[1]; }
+    }
+  }
+  function spdStart(manual) {
+    spdReset(); spd.on = true; spd.manual = !!manual; spd.t0 = performance.now(); $('spdBadge').classList.add('on'); $('spdCard').classList.remove('on');
+    $('hSpd').setAttribute('aria-pressed', 'true');
+  }
+  function spdStop(show) {
+    if (!spd.on) return;
+    const wasManual = spd.manual; spd.on = false; spd.manual = false; $('hSpd').setAttribute('aria-pressed', 'false');
+    if (spd.stream) { spd.stream.getTracks().forEach(t => t.stop()); spd.stream = null; if (!cam.stream) stopMeter(); }
+    const avg = spdAvg();
+    if (!show) { if (!wasManual) $('spdBadge').classList.remove('on'); return avg; }
+    if (avg == null) { toast('Chưa đủ dữ liệu để đo tốc độ nói (cần nói ít nhất vài giây).'); $('spdBadge').classList.remove('on'); return null; }
+    const b = spdBand(avg), secs = (spd.last - Math.max(spd.t0 || 0, spd.first - 1500)) / 1000;
+    $('spdSum').innerHTML = 'Trung bình <b>' + avg + ' từ/phút</b> (' + b[0].toLowerCase() + '), ' + spd.total + ' từ trong ' + fmt(secs) + '.';
+    $('spdNote').textContent = (spd.src === 'rec' ? 'Đếm theo chữ nhận được từ giọng nói.' : 'Ước tính theo số tiếng nghe được qua micro (tiếng Việt mỗi chữ một tiếng), có thể lệch khoảng 10–15%.') + ' Tham khảo: dưới 120 là chậm, 120–180 là vừa, trên 180 là nhanh.';
+    $('spdUse').textContent = 'Dùng ' + avg + ' từ/phút làm nhịp chạy chữ'; $('spdUse').dataset.w = avg;
+    $('spdCard').classList.add('on'); $('spdBadge').classList.remove('on');
+    return avg;
+  }
+  async function spdManual() {
+    if (spd.on && spd.manual) { if (S.mode === 'voice' && !cam.rec && voiceActive()) stopVoice(); spdStop(true); return; }
+    spdStart(true);
+    if (S.mode === 'voice') { if (!voiceActive()) startVoice(); }
+    else if (!cam.stream) {
+      try { spd.stream = await navigator.mediaDevices.getUserMedia({ audio: micConstraint() }); startMeter(spd.stream); }
+      catch (e) { spdStop(false); $('spdBadge').classList.remove('on'); setStatus('Cần quyền micro để đo tốc độ nói.', 'warn'); return; }
+    }
+    setStatus('Đang đo tốc độ nói: cứ đọc tự nhiên, bấm "⏱ Đo tốc độ" lần nữa để xem kết quả.', 'live');
   }
   function startVoice() {
     finalTail = []; partialTail = []; resetHighlights(); P.target = P.pos;
@@ -1029,7 +1112,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
       <div class="acts"><button class="btn small star" type="button" aria-pressed="${!!t.star}">⭐ Take tốt</button><button class="btn small" data-a="play" type="button">▶ Xem</button><button class="btn small primary" data-a="save" type="button">Lưu về máy</button><button class="btn small danger" data-a="del" type="button">Xoá</button></div>`;
     const nm = info.querySelector('.nm'); nm.value = t.name;
     if (isAud) info.querySelector('[data-a=play]').textContent = '▶ Nghe';
-    info.querySelector('.meta').textContent = `${fmt(t.dur)} · ${fmtSize(t.size)} · ${t.ext.toUpperCase()} · ${fmtDate(t.created)}`;
+    info.querySelector('.meta').textContent = `${fmt(t.dur)} · ${fmtSize(t.size)} · ${t.ext.toUpperCase()}${t.wpm ? ' · ' + t.wpm + ' từ/phút' : ''} · ${fmtDate(t.created)}`;
     nm.addEventListener('change', () => { t.name = nm.value.trim() || t.name; nm.value = t.name; patchTake(t.id, { name: t.name }); });
     const star = info.querySelector('.star');
     star.onclick = () => { t.star = !t.star; star.setAttribute('aria-pressed', String(t.star)); d.classList.toggle('best', t.star); patchTake(t.id, { star: t.star }); onChange && onChange(); };
@@ -1224,7 +1307,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
     cam.chunks = []; cam.rec = r;
     r.ondataavailable = e => { if (e.data && e.data.size) cam.chunks.push(e.data); };
     r.onstop = () => {
-      const kind = cam.kind;
+      const kind = cam.kind; const wpm = spd.manual ? spdAvg() : spdStop(true);
       let type = r.mimeType || mime || (kind === 'audio' ? 'audio/webm' : 'video/webm');
       let blob = new Blob(cam.chunks, { type });
       const dur = (performance.now() - cam.t0) / 1000;
@@ -1238,7 +1321,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
         }
         const existing = (await allTakes()).filter(t => t.scriptId === sc.id).length;
         const n = existing + 1;
-        const rec = { id: 't' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), scriptId: sc.id, scriptTitle: sc.title, n, name: sc.title + (kind === 'audio' ? ' · Ghi âm ' : ' · Take ') + n, kind, created: Date.now(), dur, size: blob.size, type, ext, star: false, blob };
+        const rec = { id: 't' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), scriptId: sc.id, scriptTitle: sc.title, n, name: sc.title + (kind === 'audio' ? ' · Ghi âm ' : ' · Take ') + n, kind, created: Date.now(), dur, size: blob.size, type, ext, wpm, star: false, blob };
         const ok = await storeTake(rec);
         cam.takes.push(rec);
         const what = kind === 'audio' ? 'bản ghi âm MP3 ' : 'Take ';
@@ -1246,6 +1329,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
         renderTakes(); refreshTakeCounts();
       })();
     };
+    if (!spd.manual) spdStart(false);
     r.start(1000); cam.t0 = performance.now();
     $('cRec').classList.add('on'); $('cRec').setAttribute('aria-label', 'Dừng quay'); $('recBadge').classList.add('on');
     clearInterval(cam.timer); cam.timer = setInterval(() => { $('recBadge').textContent = fmt((performance.now() - cam.t0) / 1000); }, 250);
@@ -1303,6 +1387,13 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
   }
   $('hCam').onclick = () => camOn('video');
   $('hAud').onclick = () => camOn('audio');
+  $('hSpd').onclick = () => { spdManual(); showHud(); };
+  $('spdClose').onclick = () => $('spdCard').classList.remove('on');
+  $('spdUse').onclick = () => {
+    const w = Math.max(60, Math.min(260, +$('spdUse').dataset.w || S.wpm)); S.wpm = w; saveSettings();
+    const sel = $('wpm'); if (![...sel.options].some(o => +o.value === w)) { const o = document.createElement('option'); o.value = w; o.textContent = w; sel.appendChild(o); } sel.value = String(w);
+    updateCount(); renderList(); markVoice(); $('spdCard').classList.remove('on'); toast('Nhịp chạy chữ: ' + w + ' từ/phút');
+  };
   $('hMore').onclick = () => { const on = !$('hud').classList.contains('more'); $('hud').classList.toggle('more', on); $('hMore').setAttribute('aria-expanded', on); showHud(); };
   $('cOff').onclick = () => { if (cam.rec) stopRec(); camOff(); setStatus(''); };
   $('cFlip').onclick = flipCam;
