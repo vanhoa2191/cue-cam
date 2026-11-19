@@ -482,6 +482,7 @@ input[type=range] { width: 100%; accent-color: var(--cue); }
       <p class="hint" id="micHint"></p>
     </section>
     <section class="liveonly"><h5>Quay</h5>
+      <div class="srow camonly" id="zoomRow" style="display:none"><label for="cZoom">Thu phóng<small>kéo sang trái để thấy rộng hơn</small></label><span class="stp"><input type="range" id="cZoom" style="width:130px;accent-color:var(--cue)"><b id="zoomOut"></b></span></div>
       <div class="srow camonly"><label for="cAspect">Khung hình</label><span class="stp"><select id="cAspect"><option value="9:16">Dọc 9:16 (TikTok, Reels)</option><option value="16:9">Ngang 16:9 (YouTube)</option></select></span></div>
       <div class="bgrid"><button class="btn small" id="hRehearse" type="button" aria-pressed="false">🎯 Tập dượt (không ghi)</button><button class="btn small" id="cTakes" type="button">Các take (0)</button><button class="btn small" id="cOff" type="button">Tắt camera</button></div>
     </section>
@@ -1433,7 +1434,9 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
   function aspect() { return S.aspect || (isMobile ? '9:16' : '16:9'); }
   function vcon() {
     const v = aspect() === '9:16' ? { width: { ideal: 1080 }, height: { ideal: 1920 }, aspectRatio: { ideal: 9 / 16 } } : { width: { ideal: 1920 }, height: { ideal: 1080 }, aspectRatio: { ideal: 16 / 9 } };
-    return Object.assign({ facingMode: { ideal: cam.facing }, frameRate: { ideal: 30 } }, v);
+    const o = Object.assign({ facingMode: { ideal: cam.facing }, frameRate: { ideal: 30 } }, v);
+    try { if (isMobile && navigator.mediaDevices.getSupportedConstraints().zoom) o.zoom = true; } catch (e) {} // lets us zoom out to the widest view the browser allows
+    return o;
   }
   async function reopenStream(msg) {
     if (!cam.stream || cam.rec) return false;
@@ -1457,11 +1460,12 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
         throw err;
       });
       cam.stream = stream; camVideo.srcObject = stream; camVideo.classList.toggle('front', cam.facing === 'user');
-      camVideo.style.objectFit = (aspect() === '9:16') === (innerHeight >= innerWidth) ? 'cover' : 'contain';
+      // show the whole recorded frame: 'cover' cropped the sides on tall phone screens and looked zoomed in
+      camVideo.style.objectFit = 'contain';
       fxCanvas.classList.toggle('front', cam.facing === 'user'); fxCanvas.style.objectFit = camVideo.style.objectFit;
       try { await camVideo.play(); } catch (e) {}
       $('prompter').classList.add('cam', 'live'); $('cOff').textContent = 'Tắt camera';
-      camActive = true; applyLook(); fxApply();
+      camActive = true; applyLook(); fxApply(); setupZoom();
       refreshMics(); startMeter(stream);
       measure(); place(); showHud();
       setStatus((cam.facing === 'user' ? 'Camera trước, đặt chữ sát ống kính.' : 'Camera sau.') + (S.mode === 'voice' ? ' Bấm nút đỏ: đếm 3 giây rồi vừa quay vừa chạy chữ theo giọng.' : ' Bấm nút đỏ: đếm 3 giây rồi vừa quay vừa chạy chữ.'));
@@ -1577,6 +1581,24 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
   $('cMicScan').onclick = rescanMics;
   $('cAspect').value = aspect();
   $('cAspect').onchange = () => { if (cam.rec) { $('cAspect').value = aspect(); toast('Dừng quay rồi mới đổi khung được'); return; } S.aspect = $('cAspect').value; saveSettings(); reopenStream('Khung ' + (S.aspect === '9:16' ? 'dọc 9:16' : 'ngang 16:9')); };
+  function setupZoom() {
+    const row = $('zoomRow'), t = cam.stream && cam.stream.getVideoTracks()[0];
+    let caps = null; try { caps = t && t.getCapabilities && t.getCapabilities(); } catch (e) {}
+    if (!caps || !caps.zoom || !(caps.zoom.max > caps.zoom.min)) { row.style.display = 'none'; return; }
+    row.style.display = '';
+    const z = $('cZoom'); z.min = caps.zoom.min; z.max = Math.min(caps.zoom.max, Math.max(caps.zoom.min, 1) * 4); z.step = caps.zoom.step || 0.1;
+    const saved = (S.zoom || {})[cam.facing];
+    let cur = 1; try { cur = t.getSettings().zoom || 1; } catch (e) {}
+    const want = saved != null ? Math.min(+z.max, Math.max(+z.min, saved)) : cur;
+    z.value = want; $('zoomOut').textContent = (+want).toFixed(1) + '×';
+    if (want !== cur) t.applyConstraints({ advanced: [{ zoom: want }] }).catch(() => {});
+  }
+  $('cZoom').addEventListener('input', e => {
+    const t = cam.stream && cam.stream.getVideoTracks()[0], v = +e.target.value; if (!t) return;
+    $('zoomOut').textContent = v.toFixed(1) + '×';
+    t.applyConstraints({ advanced: [{ zoom: v }] }).catch(() => {});
+    S.zoom = Object.assign({}, S.zoom, { [cam.facing]: v }); saveSettings();
+  });
   async function flipCam() {
     if (cam.rec) { toast('Dừng quay rồi mới đổi camera được'); return; }
     cam.facing = cam.facing === 'user' ? 'environment' : 'user';
