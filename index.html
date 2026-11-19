@@ -183,6 +183,28 @@ input[type=range] { width: 100%; accent-color: var(--cue); }
 #about .qr img { display: block; width: 100%; height: auto; }
 #about .row2 { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 #about a { color: var(--cue); }
+/* video library */
+#library { position: fixed; inset: 0; z-index: 60; background: var(--ink); display: none; flex-direction: column; }
+#library.on { display: flex; }
+#library .lhead { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; padding-block: 12px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); border-bottom: 1px solid var(--line); }
+#library .lhead h2 { margin: 0; font-family: var(--font-brand); font-size: 20px; }
+#library .lbody { flex: 1; overflow-y: auto; padding-block: 8px 32px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+#library .usage { color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.proj { border-bottom: 1px solid var(--line); padding: 16px 0; display: grid; gap: 10px; }
+.proj .ph { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.proj .ph h3 { margin: 0; font-size: 16px; flex: 1; min-width: 160px; }
+.proj .ph .meta { color: var(--muted); font-size: 12.5px; }
+.tk { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 12px; align-items: start; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px; }
+.tk.best { border-color: var(--cue); }
+.tk .thumb { width: 112px; aspect-ratio: 9 / 16; max-height: 150px; object-fit: cover; background: #000; border-radius: 6px; }
+.tk .info { display: grid; gap: 6px; min-width: 0; }
+.tk input.nm { background: transparent; border: 0; border-bottom: 1px solid transparent; font-weight: 600; padding: 2px 0; width: 100%; min-width: 0; }
+.tk input.nm:focus { border-bottom-color: var(--cue); outline: none; }
+.tk .meta { color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.tk .acts { display: flex; flex-wrap: wrap; gap: 6px; }
+.tk .star[aria-pressed=true] { color: var(--cue); border-color: var(--cue); }
+.tk .player { grid-column: 1 / -1; width: 100%; max-height: 70vh; background: #000; border-radius: 8px; }
+#takes .tk { background: #1a1a1a; border-color: #2a2a2a; color: #eee; }
 .toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--panel); border: 1px solid var(--line); padding: 10px 16px; border-radius: 10px; z-index: 80; opacity: 0; transition: opacity .25s; pointer-events: none; max-width: calc(100% - 32px); }
 .toast.on { opacity: 1; }
 .confirm { display: none; gap: 8px; align-items: center; font-size: 13px; }
@@ -208,6 +230,7 @@ input[type=range] { width: 100%; accent-color: var(--cue); }
     <button class="btn ghost small" id="btnImport" type="button">Nhập file (PDF, Word, TXT, MD)</button>
     <button class="btn ghost small" id="btnExport" type="button">Sao lưu</button>
     <input type="file" id="fileIn" accept=".txt,.md,.markdown,.pdf,.docx,.json,text/plain,text/markdown,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden>
+    <button class="btn ghost small" id="btnLibrary" type="button">🎞 Thư viện video</button>
     <button class="btn rec" id="btnRecord" type="button">● Quay video</button>
     <button class="btn primary" id="btnStart" type="button">▶ Bắt đầu đọc</button>
   </header>
@@ -288,7 +311,7 @@ input[type=range] { width: 100%; accent-color: var(--cue); }
     <div id="readline"><div class="band"></div></div>
   </div>
   <div id="countdown"></div>
-  <div id="takes" aria-label="Các take đã quay"><h4><span>Các take đã quay</span><button class="btn small" id="takesClose" type="button">Đóng</button></h4><p class="meta" id="takesNote">Video chỉ nằm tạm trong trang này. Bấm "Lưu về máy" cho take bạn muốn giữ trước khi thoát.</p><div id="takeList"></div></div>
+  <div id="takes" aria-label="Các take đã quay"><h4><span>Các take đã quay</span><button class="btn small" id="takesClose" type="button">Đóng</button></h4><p class="meta" id="takesNote">Các take của kịch bản này, đã lưu trong trình duyệt. Xem tất cả ở Thư viện video.</p><div id="takeList"></div></div>
   <div id="hud">
     <div id="progress"><i></i></div>
     <div class="hudrow">
@@ -344,6 +367,16 @@ input[type=range] { width: 100%; accent-color: var(--cue); }
       <div class="row2"><span>Số tài khoản:</span><span class="big">131913131</span><button class="btn small" type="button" data-copy="131913131">Chép STK</button></div>
     </div>
   </div>
+</div>
+<div id="library" role="dialog" aria-label="Thư viện video">
+  <div class="lhead">
+    <h2>Thư viện video</h2>
+    <span class="usage" id="libUsage"></span>
+    <span class="spacer"></span>
+    <label class="toggle" style="gap:6px">Chỉ take tốt ⭐ <input type="checkbox" id="libBest"></label>
+    <button class="btn small" id="libClose" type="button">Đóng</button>
+  </div>
+  <div class="lbody" id="libBody"></div>
 </div>
 <div class="toast" id="toast"></div>
 
@@ -409,7 +442,8 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
       const li = document.createElement('li'); if (s.id === currentId) li.className = 'active';
       const b = document.createElement('button'); b.type = 'button';
       const n = countWords(s.body);
-      b.innerHTML = `<span class="t"></span><span class="m">${n} từ · ${fmt(n / S.wpm * 60)}${s.example ? ' · mẫu' : ''}</span>`;
+      const tc = (typeof takeCounts !== 'undefined' && takeCounts[s.id]) || 0;
+      b.innerHTML = `<span class="t"></span><span class="m">${n} từ · ${fmt(n / S.wpm * 60)}${tc ? ' · 🎞 ' + tc + ' take' : ''}${s.example ? ' · mẫu' : ''}</span>`;
       b.querySelector('.t').textContent = s.title || 'Chưa đặt tên';
       b.onclick = () => { currentId = s.id; loadEditor(); renderList(); store.set('current', currentId); };
       li.appendChild(b); ul.appendChild(li);
@@ -874,6 +908,111 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
     return 'Trình duyệt này chưa hỗ trợ nghe giọng nói. Hãy dùng Chrome hoặc Edge trên máy tính.';
   }
 
+  /* ---------------- Video storage (IndexedDB) ---------------- */
+  const vdb = (() => {
+    let dbp = null;
+    const open = () => dbp || (dbp = new Promise((ok, bad) => {
+      try {
+        const r = indexedDB.open('cuecam', 1);
+        r.onupgradeneeded = () => { const st = r.result.createObjectStore('takes', { keyPath: 'id' }); st.createIndex('script', 'scriptId'); };
+        r.onsuccess = () => ok(r.result); r.onerror = () => bad(r.error);
+      } catch (e) { bad(e); }
+    }));
+    const req = (mode, fn) => open().then(db => new Promise((ok, bad) => {
+      const t = db.transaction('takes', mode), st = t.objectStore('takes'); let out;
+      const r = fn(st); if (r) r.onsuccess = () => { out = r.result; };
+      t.oncomplete = () => ok(out); t.onerror = () => bad(t.error); t.onabort = () => bad(t.error);
+    }));
+    return {
+      put: rec => req('readwrite', st => st.put(rec)),
+      del: id => req('readwrite', st => st.delete(id)),
+      all: () => req('readonly', st => st.getAll()).then(a => (a || []).sort((x, y) => y.created - x.created)),
+      get: id => req('readonly', st => st.get(id)),
+      async patch(id, p) { const r = await this.get(id); if (r) { Object.assign(r, p); await this.put(r); } return r; }
+    };
+  })();
+  let memTakes = []; // used only if IndexedDB is unavailable
+  async function allTakes() { try { return await vdb.all(); } catch (e) { return memTakes.slice().sort((x, y) => y.created - x.created); } }
+  async function storeTake(rec) {
+    try { await vdb.put(rec); try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) {} return true; }
+    catch (e) { memTakes.push(rec); return false; }
+  }
+  async function removeTake(id) { try { await vdb.del(id); } catch (e) {} memTakes = memTakes.filter(t => t.id !== id); }
+  async function patchTake(id, p) { try { await vdb.patch(id, p); } catch (e) { const t = memTakes.find(x => x.id === id); if (t) Object.assign(t, p); } }
+  const fmtSize = b => b >= 1073741824 ? (b / 1073741824).toFixed(1) + ' GB' : (b / 1048576).toFixed(1) + ' MB';
+  const fmtDate = ms => { const d = new Date(ms); return d.toLocaleDateString('vi-VN') + ' ' + d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }); };
+  const fileName = t => (t.name || 'CueCam take').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '-') + '.' + t.ext;
+  const liveUrls = new Set();
+  const urlFor = t => { const u = URL.createObjectURL(t.blob); liveUrls.add(u); return u; };
+  const freeUrls = () => { liveUrls.forEach(u => URL.revokeObjectURL(u)); liveUrls.clear(); };
+
+  // One row for a take, used in the recording panel and in the library
+  function takeRow(t, onChange) {
+    const d = document.createElement('div'); d.className = 'tk' + (t.star ? ' best' : '');
+    const thumb = document.createElement('video'); thumb.className = 'thumb'; thumb.muted = true; thumb.playsInline = true; thumb.preload = 'metadata'; thumb.src = urlFor(t) + '#t=0.3';
+    const info = document.createElement('div'); info.className = 'info';
+    info.innerHTML = `<input class="nm" aria-label="Tên take"><div class="meta"></div>
+      <div class="acts"><button class="btn small star" type="button" aria-pressed="${!!t.star}">⭐ Take tốt</button><button class="btn small" data-a="play" type="button">▶ Xem</button><button class="btn small primary" data-a="save" type="button">Lưu về máy</button><button class="btn small danger" data-a="del" type="button">Xoá</button></div>`;
+    const nm = info.querySelector('.nm'); nm.value = t.name;
+    info.querySelector('.meta').textContent = `${fmt(t.dur)} · ${fmtSize(t.size)} · ${t.ext.toUpperCase()} · ${fmtDate(t.created)}`;
+    nm.addEventListener('change', () => { t.name = nm.value.trim() || t.name; nm.value = t.name; patchTake(t.id, { name: t.name }); });
+    const star = info.querySelector('.star');
+    star.onclick = () => { t.star = !t.star; star.setAttribute('aria-pressed', String(t.star)); d.classList.toggle('best', t.star); patchTake(t.id, { star: t.star }); onChange && onChange(); };
+    info.querySelector('[data-a=play]').onclick = () => {
+      const old = d.querySelector('.player'); if (old) { old.pause(); old.remove(); return; }
+      const v = document.createElement('video'); v.className = 'player'; v.src = urlFor(t); v.controls = true; v.playsInline = true; d.appendChild(v); v.play().catch(() => {});
+    };
+    info.querySelector('[data-a=save]').onclick = () => saveTake(t);
+    const del = info.querySelector('[data-a=del]');
+    del.onclick = async () => {
+      if (!del.dataset.sure) { del.dataset.sure = '1'; del.textContent = 'Chắc chắn xoá?'; setTimeout(() => { delete del.dataset.sure; del.textContent = 'Xoá'; }, 3000); return; }
+      await removeTake(t.id); d.remove(); toast('Đã xoá ' + t.name); onChange && onChange();
+    };
+    thumb.onclick = () => info.querySelector('[data-a=play]').click();
+    d.append(thumb, info);
+    return d;
+  }
+
+  /* ---------------- Library ---------------- */
+  async function renderLibrary() {
+    freeUrls();
+    const body = $('libBody'); body.innerHTML = '<p class="meta">Đang tải…</p>';
+    let takes = await allTakes();
+    const total = takes.reduce((a, t) => a + (t.size || 0), 0);
+    let quota = '';
+    try { const est = await navigator.storage.estimate(); if (est && est.quota) quota = ' · trình duyệt cho dùng tối đa khoảng ' + fmtSize(est.quota); } catch (e) {}
+    $('libUsage').textContent = takes.length + ' take · ' + fmtSize(total) + quota;
+    if ($('libBest').checked) takes = takes.filter(t => t.star);
+    body.innerHTML = '';
+    if (!takes.length) { body.innerHTML = '<p class="meta" style="padding:16px 0">' + ($('libBest').checked ? 'Chưa có take nào được đánh dấu ⭐.' : 'Chưa có video nào. Bấm "● Quay video" để quay take đầu tiên. Mỗi kịch bản là một dự án, các take quay theo kịch bản đó sẽ nằm chung một nhóm.') + '</p>'; return; }
+    const groups = new Map();
+    takes.forEach(t => { if (!groups.has(t.scriptId)) groups.set(t.scriptId, []); groups.get(t.scriptId).push(t); });
+    groups.forEach((list, sid) => {
+      const sc = scripts.find(x => x.id === sid);
+      const g = document.createElement('section'); g.className = 'proj';
+      const best = list.filter(t => t.star).length;
+      g.innerHTML = `<div class="ph"><h3></h3><span class="meta">${list.length} take${best ? ' · ' + best + ' take tốt' : ''} · ${fmtSize(list.reduce((a, t) => a + t.size, 0))}</span>
+        ${sc ? '<button class="btn small" data-a="open" type="button">Mở kịch bản</button><button class="btn small rec" data-a="more" type="button">● Quay thêm take</button>' : '<span class="meta">(kịch bản đã xoá)</span>'}</div>`;
+      g.querySelector('h3').textContent = sc ? sc.title : (list[0].scriptTitle || 'Không tên');
+      if (sc) {
+        g.querySelector('[data-a=open]').onclick = () => { closeLibrary(); currentId = sid; loadEditor(); renderList(); };
+        g.querySelector('[data-a=more]').onclick = () => { closeLibrary(); currentId = sid; loadEditor(); renderList(); openPrompter(); camOn(); };
+      }
+      list.forEach(t => g.appendChild(takeRow(t, () => { if ($('libBest').checked) renderLibrary(); })));
+      body.appendChild(g);
+    });
+  }
+  function closeLibrary() { $('library').querySelectorAll('video').forEach(v => v.pause()); $('library').classList.remove('on'); freeUrls(); refreshTakeCounts(); }
+  $('btnLibrary').onclick = () => { $('library').classList.add('on'); renderLibrary(); };
+  $('libClose').onclick = closeLibrary;
+  $('libBest').addEventListener('change', renderLibrary);
+  var takeCounts = {};
+  async function refreshTakeCounts() {
+    const all = await allTakes(); takeCounts = {};
+    all.forEach(t => { takeCounts[t.scriptId] = (takeCounts[t.scriptId] || 0) + 1; });
+    renderList();
+  }
+
   /* ---------------- Camera + recording ---------------- */
   const cam = { stream: null, facing: 'user', rec: null, chunks: [], takes: [], t0: 0, timer: 0 };
   const camVideo = $('camVideo');
@@ -988,8 +1127,16 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
       const type = r.mimeType || mime || 'video/webm';
       const blob = new Blob(cam.chunks, { type });
       const dur = (performance.now() - cam.t0) / 1000;
-      cam.takes.push({ n: cam.takes.length + 1, blob, url: URL.createObjectURL(blob), dur, ext: /mp4/.test(type) ? 'mp4' : 'webm', type });
-      renderTakes(); toast('Đã lưu tạm take ' + cam.takes.length);
+      const sc = cur();
+      (async () => {
+        const existing = (await allTakes()).filter(t => t.scriptId === sc.id).length;
+        const n = existing + 1;
+        const rec = { id: 't' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), scriptId: sc.id, scriptTitle: sc.title, n, name: sc.title + ' · Take ' + n, created: Date.now(), dur, size: blob.size, type, ext: /mp4/.test(type) ? 'mp4' : 'webm', star: false, blob };
+        const ok = await storeTake(rec);
+        cam.takes.push(rec);
+        toast(ok ? 'Đã lưu Take ' + n + ' vào Thư viện video' : 'Đã quay Take ' + n + ' (chỉ giữ tạm, hãy Lưu về máy)');
+        renderTakes(); refreshTakeCounts();
+      })();
     };
     r.start(1000); cam.t0 = performance.now();
     $('cRec').classList.add('on'); $('cRec').setAttribute('aria-label', 'Dừng quay'); $('recBadge').classList.add('on');
@@ -1004,25 +1151,17 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
     if (S.mode === 'auto') setPlay(false); else stopVoice();
     showHud();
   }
-  function renderTakes() {
-    $('cTakes').textContent = 'Các take (' + cam.takes.length + ')';
-    const list = $('takeList'); list.innerHTML = '';
-    cam.takes.slice().reverse().forEach(t => {
-      const d = document.createElement('div'); d.className = 'take';
-      d.innerHTML = `<div><b>Take ${t.n}</b> <span class="meta">· ${fmt(t.dur)} · ${(t.blob.size / 1048576).toFixed(1)} MB · ${t.ext.toUpperCase()}</span></div>
-        <div class="acts"><button class="btn small" data-a="play" type="button">Xem</button><button class="btn small primary" data-a="save" type="button">Lưu về máy</button><button class="btn small danger" data-a="del" type="button">Xoá</button></div>`;
-      d.querySelector('[data-a=play]').onclick = () => {
-        const old = d.querySelector('video'); if (old) { old.remove(); return; }
-        const v = document.createElement('video'); v.src = t.url; v.controls = true; v.playsInline = true; d.appendChild(v); v.play().catch(() => {});
-      };
-      d.querySelector('[data-a=save]').onclick = () => saveTake(t);
-      d.querySelector('[data-a=del]').onclick = () => { URL.revokeObjectURL(t.url); cam.takes = cam.takes.filter(x => x !== t); renderTakes(); };
-      list.appendChild(d);
-    });
-    if (!cam.takes.length) list.innerHTML = '<p class="meta">Chưa có take nào. Bấm nút đỏ để quay.</p>';
+  async function renderTakes() {
+    const sc = cur();
+    const list = (await allTakes()).filter(t => t.scriptId === sc.id);
+    $('cTakes').textContent = 'Các take (' + list.length + ')';
+    if (!$('takes').classList.contains('on')) return;
+    const box = $('takeList'); box.querySelectorAll('video').forEach(v => v.pause()); box.innerHTML = '';
+    list.forEach(t => box.appendChild(takeRow(t, renderTakes)));
+    if (!list.length) box.innerHTML = '<p class="meta">Chưa có take nào cho kịch bản này. Bấm nút đỏ để quay.</p>';
   }
   async function saveTake(t) {
-    const name = 'CueCam-take' + t.n + '-' + new Date().toISOString().slice(0, 16).replace(/[:T]/g, '') + '.' + t.ext;
+    const name = fileName(t);
     const file = new File([t.blob], name, { type: t.type });
     // phones: share sheet lets you "Save video" to Photos/Gallery
     if (navigator.canShare && navigator.share) {
@@ -1030,7 +1169,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
       catch (e) { if (e && e.name === 'AbortError') return; }
     }
     if (downloads) { try { await downloads.save({ filename: name, data: t.blob }); return; } catch (e) { if (e && e.code === 'declined') return; } }
-    const a = document.createElement('a'); a.href = t.url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    const a = document.createElement('a'); a.href = urlFor(t); a.download = name; document.body.appendChild(a); a.click(); a.remove();
   }
   $('hCam').onclick = () => { if (cam.stream) { $('takes').classList.remove('on'); showHud(); } else camOn(); };
   $('cOff').onclick = () => { if (cam.rec) stopRec(); camOff(); setStatus(''); };
@@ -1045,9 +1184,9 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
     }
     if (S.count) countdown(startRec); else startRec();
   };
-  $('cTakes').onclick = () => { renderTakes(); $('takes').classList.add('on'); };
+  $('cTakes').onclick = () => { $('takes').classList.add('on'); renderTakes(); };
   $('takesClose').onclick = () => $('takes').classList.remove('on');
-  window.addEventListener('beforeunload', e => { if (cam.takes.length) { e.preventDefault(); e.returnValue = ''; } });
+  window.addEventListener('beforeunload', e => { if (memTakes.length) { e.preventDefault(); e.returnValue = ''; } });
 
   /* Wire HUD */
   $('modeAuto').onclick = () => setMode('auto');
@@ -1067,7 +1206,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
   $('hFull').onclick = () => { const el = $('prompter'); if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); else if (el.requestFullscreen) el.requestFullscreen().catch(() => toast('Không bật được toàn màn hình ở đây')); };
   $('hExit').onclick = closePrompter;
   $('btnStart').onclick = openPrompter;
-  $('btnRecord').onclick = () => { openPrompter(); camOn(); };
+  $('btnRecord').onclick = () => { openPrompter(); camOn(); renderTakes(); };
   window.addEventListener('resize', () => { if (P.open) { measure(); place(); } });
 
   document.addEventListener('keydown', e => {
@@ -1113,6 +1252,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
   });
 
   /* ---------------- Boot ---------------- */
+  setTimeout(() => refreshTakeCounts().catch(() => {}), 0);
   applyLook(); loadEditor(); renderList(); syncSettingsUI();
   if (window.claude && typeof window.claude.use === 'function') {
     window.claude.use('downloads').then(d => { downloads = d; }).catch(() => {});
