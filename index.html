@@ -72,6 +72,8 @@ aside.list .head input { flex: 1; min-width: 0; background: var(--panel); border
 #scriptList .m { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 
 section.editor { display: flex; flex-direction: column; padding: 16px 24px; gap: 12px; }
+.titlerow { display: flex; gap: 8px; align-items: center; }
+.titlerow #title { flex: 1; min-width: 0; }
 #title { background: transparent; border: 0; font-family: var(--font-brand); font-size: 24px; font-weight: 600; padding: 4px 0; width: 100%; }
 #title:focus-visible { outline: none; border-bottom: 1px solid var(--cue); }
 #body { flex: 1; min-height: 240px; resize: none; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; line-height: 1.7; font-size: 16px; }
@@ -196,9 +198,9 @@ input[type=range] { width: 100%; accent-color: var(--cue); }
     <div class="brand"><span class="tally" aria-hidden="true"></span>CueCam <small>teleprompter cuộn theo giọng nói</small></div>
     <div class="spacer"></div>
     <button class="btn ghost small" id="btnAbout" type="button">Liên hệ & ủng hộ</button>
-    <button class="btn ghost small" id="btnImport" type="button">Nhập file .txt</button>
+    <button class="btn ghost small" id="btnImport" type="button">Nhập file (PDF, Word, TXT, MD)</button>
     <button class="btn ghost small" id="btnExport" type="button">Sao lưu</button>
-    <input type="file" id="fileIn" accept=".txt,.md,.json,text/plain" hidden>
+    <input type="file" id="fileIn" accept=".txt,.md,.markdown,.pdf,.docx,.json,text/plain,text/markdown,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden>
     <button class="btn primary" id="btnStart" type="button">▶ Bắt đầu đọc</button>
   </header>
 
@@ -212,7 +214,9 @@ input[type=range] { width: 100%; accent-color: var(--cue); }
     </aside>
 
     <section class="editor">
-      <input id="title" aria-label="Tên kịch bản" placeholder="Tên kịch bản">
+      <div class="titlerow"><input id="title" aria-label="Tên kịch bản" placeholder="Tên kịch bản">
+        <button class="btn small" id="btnPaste" type="button">📋 Dán</button>
+        <button class="btn small" id="btnImport2" type="button">📄 Nhập file</button></div>
       <textarea id="body" aria-label="Nội dung kịch bản" placeholder="Dán hoặc gõ kịch bản ở đây…"></textarea>
       <div class="edfoot">
         <span><b id="wc">0</b> từ</span>
@@ -431,19 +435,84 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
   }
   $('btnExport').onclick = () => saveFile('cuecam-sao-luu-' + new Date().toISOString().slice(0, 10) + '.json', JSON.stringify({ app: 'CueCam', version: 1, scripts }, null, 2));
   $('btnImport').onclick = () => $('fileIn').click();
-  $('fileIn').addEventListener('change', async e => {
-    const f = e.target.files[0]; if (!f) return; const text = await f.text(); e.target.value = '';
-    if (/\.json$/i.test(f.name)) {
-      try { const d = JSON.parse(text); const list = (d.scripts || []).filter(s => s && typeof s.body === 'string');
-        list.forEach(s => { s.id = newId(); s.updated = s.updated || Date.now(); scripts.push(s); });
-        if (list.length) currentId = list[0].id; toast('Đã nhập ' + list.length + ' kịch bản');
-      } catch (err) { toast('File sao lưu không đọc được'); return; }
-    } else {
-      const s = { id: newId(), title: f.name.replace(/\.[^.]+$/, ''), body: text.replace(/\r\n/g, '\n'), updated: Date.now() };
-      scripts.push(s); currentId = s.id; toast('Đã nhập ' + f.name);
+  $('btnImport2').onclick = () => $('fileIn').click();
+  const loadScript = src => new Promise((ok, bad) => { const el = document.createElement('script'); el.src = src; el.onload = ok; el.onerror = () => bad(new Error('load ' + src)); document.head.appendChild(el); });
+  let pdfReady = null, mammothReady = null;
+  async function pdfToText(buf) {
+    if (!pdfReady) pdfReady = loadScript('lib/pdf.min.js').then(() => { window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'lib/pdf.worker.min.js'; });
+    await pdfReady;
+    const doc = await window.pdfjsLib.getDocument({ data: buf }).promise;
+    let out = '';
+    for (let n = 1; n <= doc.numPages; n++) {
+      const page = await doc.getPage(n); const tc = await page.getTextContent();
+      let line = '', lastY = null;
+      for (const it of tc.items) {
+        const y = it.transform ? Math.round(it.transform[5]) : null;
+        if (lastY !== null && y !== null && Math.abs(y - lastY) > 2 && line) { out += line.trim() + '\n'; line = ''; }
+        line += it.str; if (it.hasEOL) { out += line.trim() + '\n'; line = ''; }
+        lastY = y;
+      }
+      if (line.trim()) out += line.trim() + '\n';
+      out += '\n';
     }
-    saveScripts(); loadEditor(); renderList();
+    // join wrapped lines inside a paragraph: a line not ending in . ! ? : gets merged with the next
+    return out.split(/\n{2,}/).map(par => par.split('\n').map(x => x.trim()).filter(Boolean)
+      .reduce((acc, ln) => { if (acc.length && !/[.!?:…"”)\]]$/.test(acc[acc.length - 1])) acc[acc.length - 1] += ' ' + ln; else acc.push(ln); return acc; }, []).join('\n'))
+      .filter(Boolean).join('\n\n');
+  }
+  async function docxToText(buf) {
+    if (!mammothReady) mammothReady = loadScript('lib/mammoth.browser.min.js');
+    await mammothReady;
+    const r = await window.mammoth.extractRawText({ arrayBuffer: buf });
+    return r.value.replace(/\n{3,}/g, '\n\n').trim();
+  }
+  function mdToText(t) {
+    return t.replace(/\r\n/g, '\n')
+      .replace(/^```[\s\S]*?^```/gm, '')
+      .replace(/^\s{0,3}#{1,6}\s+(.*)$/gm, '## $1')
+      .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
+      .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+      .replace(/(\*\*|__)(.*?)\1/g, '$2').replace(/(\*|_)([^*_\n]+)\1/g, '$2').replace(/`([^`]+)`/g, '$1')
+      .replace(/^\s*>\s?/gm, '').replace(/^\s*[-*+]\s+/gm, '').replace(/^\s*\d+[.)]\s+/gm, '')
+      .replace(/^\s*([-*_]\s*){3,}$/gm, '').replace(/\n{3,}/g, '\n\n').trim();
+  }
+  function addScript(title, body) {
+    const s = { id: newId(), title, body, updated: Date.now() };
+    scripts.push(s); currentId = s.id; saveScripts(); loadEditor(); renderList();
+  }
+  $('fileIn').addEventListener('change', async e => {
+    const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+    const name = f.name, base = name.replace(/\.[^.]+$/, ''), ext = (name.match(/\.([^.]+)$/) || [, ''])[1].toLowerCase();
+    try {
+      if (ext === 'json') {
+        const d = JSON.parse(await f.text()); const list = (d.scripts || []).filter(s => s && typeof s.body === 'string');
+        list.forEach(s => { s.id = newId(); s.updated = s.updated || Date.now(); scripts.push(s); });
+        if (list.length) currentId = list[list.length - 1].id;
+        saveScripts(); loadEditor(); renderList(); toast('Đã nhập ' + list.length + ' kịch bản'); return;
+      }
+      if (ext === 'doc') { toast('File .doc đời cũ chưa đọc được. Hãy mở bằng Word và lưu lại thành .docx.'); return; }
+      toast('Đang đọc ' + name + '…');
+      let text;
+      if (ext === 'pdf') text = await pdfToText(await f.arrayBuffer());
+      else if (ext === 'docx') text = await docxToText(await f.arrayBuffer());
+      else if (ext === 'md' || ext === 'markdown') text = mdToText(await f.text());
+      else text = (await f.text()).replace(/\r\n/g, '\n');
+      if (!text.trim()) { toast(ext === 'pdf' ? 'PDF này không có chữ chọn được (có thể là ảnh scan).' : 'File không có nội dung chữ.'); return; }
+      addScript(base, text); toast('Đã nhập ' + name);
+    } catch (err) { toast('Không đọc được ' + name + '. Thử lưu lại file rồi nhập lần nữa.'); }
   });
+
+  /* Paste button */
+  $('btnPaste').onclick = async () => {
+    let text = '';
+    try { text = await navigator.clipboard.readText(); }
+    catch (e) { $('body').focus(); toast('Trình duyệt chưa cho đọc bộ nhớ tạm. Bấm giữ vào ô soạn thảo rồi chọn Dán.'); return; }
+    if (!text.trim()) { toast('Bộ nhớ tạm đang trống'); return; }
+    const ta = $('body'), a = ta.selectionStart ?? ta.value.length, b = ta.selectionEnd ?? ta.value.length;
+    ta.value = ta.value.slice(0, a) + text + ta.value.slice(b);
+    ta.selectionStart = ta.selectionEnd = a + text.length; ta.focus();
+    onEdit(); toast('Đã dán ' + countWords(text) + ' từ');
+  };
 
   /* ---------------- Settings ---------------- */
   const bind = (id, key, fmtFn, after) => {
