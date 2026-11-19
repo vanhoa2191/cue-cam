@@ -462,7 +462,7 @@ input[type=range] { width: 100%; accent-color: var(--cue); }
     <div class="rvmore"><button class="btn small ghost" id="rvSrt" type="button">📝 Phụ đề .srt</button><button class="btn small ghost" id="rvClose" type="button">Xong</button></div>
   </div></div>
   <div id="sheet" aria-label="Bảng chỉnh">
-    <div class="shead"><b>Chỉnh</b><button class="btn small" id="sheetClose" type="button">Xong</button></div>
+    <div class="shead"><b>Chỉnh <small class="appver" style="color:#777;font-weight:400"></small></b><button class="btn small" id="sheetClose" type="button">Xong</button></div>
     <section><h5>Chạy chữ</h5>
       <div class="seg wide" role="group" aria-label="Chế độ chạy chữ">
         <button type="button" id="modeAuto" aria-pressed="true">Tự động</button>
@@ -531,7 +531,7 @@ input[type=range] { width: 100%; accent-color: var(--cue); }
 </div>
 <div id="about" role="dialog" aria-modal="true" aria-labelledby="aboutTitle">
   <div class="card">
-    <h2><span id="aboutTitle">CueCam</span><button class="btn small" id="aboutClose" type="button">Đóng</button></h2>
+    <h2><span id="aboutTitle">CueCam <small class="appver" style="font-weight:400;opacity:.6;font-size:.6em"></small></span><button class="btn small" id="aboutClose" type="button">Đóng</button></h2>
     <div>
       <h3>Tác giả</h3>
       <p>Mr. Hòa. Liên hệ để góp ý hoặc đề xuất thêm tính năng:</p>
@@ -561,11 +561,12 @@ input[type=range] { width: 100%; accent-color: var(--cue); }
 </div>
 <div class="toast" id="toast"></div>
 
-<script src="lib/beauty.js?v=6"></script>
+<script src="lib/beauty.js?v=8"></script>
 <script>
 (() => {
   'use strict';
   const $ = id => document.getElementById(id);
+  const APP_VERSION = '19.11 · 8'; // shown in ⚙ and Liên hệ so Hoà can check the phone has the latest build
   const store = {
     get(k, d) { try { const v = localStorage.getItem('cuecam.' + k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
     set(k, v) { try { localStorage.setItem('cuecam.' + k, JSON.stringify(v)); return true; } catch (e) { return false; } }
@@ -2065,7 +2066,10 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
   /* ---------------- Boot ---------------- */
   setTimeout(() => refreshTakeCounts().catch(() => {}), 0);
   applyLook(); loadEditor(); renderList(); syncSettingsUI();
-  if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+  document.querySelectorAll('.appver').forEach(e => { e.textContent = 'bản ' + APP_VERSION; });
+  if ('serviceWorker' in navigator && location.protocol === 'https:') {
+    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(r => r.update && r.update()).catch(() => {});
+  }
   { // quick record: ?quay=video|audio (home-screen shortcut) or the "open straight into recording" setting
     const q = new URLSearchParams(location.search).get('quay') || (S.autoCam ? (S.lastKind || 'video') : '');
     if (q === 'video' || q === 'audio') setTimeout(() => { openPrompter(); camOn(q); renderTakes(); }, 50);
