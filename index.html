@@ -345,7 +345,7 @@ input[type=range] { width: 100%; accent-color: var(--cue); }
       <label class="toggle">Làm tối phần đã đọc <input type="checkbox" id="tShade"></label>
       <label class="toggle">Đếm ngược 3 giây <input type="checkbox" id="tCount"></label>
       <h3 id="driveH">Google Drive</h3>
-      <div class="field"><div class="row"><label for="sGcid">Mã kết nối Google (Client ID)</label></div><input id="sGcid" class="txt" placeholder="xxxx.apps.googleusercontent.com" autocomplete="off" spellcheck="false"></div>
+      <div class="field"><div class="row"><label for="sGcid">Mã kết nối Google riêng (không bắt buộc)</label></div><input id="sGcid" class="txt" placeholder="Để trống: dùng mã có sẵn của CueCam" autocomplete="off" spellcheck="false"></div>
       <label class="toggle">Tự tải lên Drive sau khi quay <input type="checkbox" id="tDriveAuto"></label>
       <div class="drow"><button class="btn small" id="btnDrive" type="button">☁ Kết nối Google Drive</button><span class="meta" id="driveState">Chưa kết nối</span></div>
       <p class="meta">Video và file ghi âm được tải vào thư mục <b>CueCam</b> trên Drive của bạn, chia theo từng kịch bản. App chỉ thấy các file do chính nó tạo.</p>
@@ -1151,6 +1151,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
   }
 
   /* ---------------- Google Drive (Google Identity Services + Drive API v3, scope drive.file) ---------------- */
+  const GCID = '784667521104-dc7gpal6rvlq2fcsmbgqbn7905aufgc8.apps.googleusercontent.com'; // CueCam's own OAuth client (public, not a secret)
   const drive = { token: '', exp: 0, client: null, gisP: null, waiters: [] };
   function loadGis() {
     if (window.google && google.accounts && google.accounts.oauth2) return Promise.resolve();
@@ -1162,7 +1163,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
   function driveReady() { return drive.token && Date.now() < drive.exp - 60000; }
   // must be called from a tap: Google shows its sign-in popup
   function driveConnect() {
-    const cid = (S.gcid || '').trim();
+    const cid = (S.gcid || GCID).trim();
     if (!cid) { toast('Chưa có mã kết nối Google. Dán Client ID trong phần Google Drive ở Cài đặt.'); openDriveSettings(); return Promise.resolve(false); }
     if (driveReady()) return Promise.resolve(true);
     return new Promise(resolve => {
@@ -1493,7 +1494,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
         const rec = { id: 't' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), scriptId: sc.id, scriptTitle: sc.title, n, name: sc.title + (kind === 'audio' ? ' · Ghi âm ' : ' · Take ') + n, kind, created: Date.now(), dur, size: blob.size, type, ext, wpm, fx: fxUsed, star: false, blob };
         const ok = await storeTake(rec);
         cam.takes.push(rec);
-        if (S.driveAuto && S.gcid) { if (driveReady()) driveUpload(rec).then(() => renderTakes()); else toast('Bấm ☁ Lên Drive trong Các take để tải (cần đăng nhập Google)'); }
+        if (S.driveAuto) { if (driveReady()) driveUpload(rec).then(() => renderTakes()); else toast('Bấm ☁ Lên Drive trong Các take để tải (cần đăng nhập Google)'); }
         const what = kind === 'audio' ? 'bản ghi âm MP3 ' : 'Take ';
         toast(ok ? 'Đã lưu ' + what + n + ' vào Thư viện' : 'Đã thu ' + what + n + ' (chỉ giữ tạm, hãy Lưu về máy)');
         renderTakes(); refreshTakeCounts();
