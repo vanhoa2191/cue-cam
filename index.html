@@ -85,7 +85,18 @@ aside.list .head input { flex: 1; min-width: 0; background: var(--panel); border
 #scriptList .m { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 
 section.editor { display: flex; flex-direction: column; padding: 16px 24px; gap: 12px; }
-.titlerow { display: flex; gap: 8px; align-items: center; }
+.titlerow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+@media (max-width: 700px) { .titlerow #title { flex-basis: 100%; } }
+.menuwrap { position: relative; }
+.menu { display: none; position: absolute; right: 0; top: calc(100% + 6px); z-index: 30; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 6px; flex-direction: column; min-width: 200px; box-shadow: 0 8px 24px rgba(0,0,0,.4); }
+.menu.on { display: flex; }
+.menu .btn { justify-content: flex-start; border: 0; }
+.stoggle { display: none; }
+@media (max-width: 900px) {
+  .deskonly { display: none !important; }
+  .stoggle { display: flex; justify-content: space-between; width: 100%; }
+  aside.settings:not(.open) > :not(.stoggle) { display: none !important; }
+}
 .titlerow #title { flex: 1; min-width: 0; }
 #title { background: transparent; border: 0; font-family: var(--font-brand); font-size: 24px; font-weight: 600; padding: 4px 0; width: 100%; }
 #title:focus-visible { outline: none; border-bottom: 1px solid var(--cue); }
@@ -123,6 +134,8 @@ input[type=range] { width: 100%; accent-color: var(--cue); }
 #scroller { position: absolute; left: 0; right: 0; top: 0; will-change: transform; }
 #content { position: relative; margin: 0 auto; font-weight: 500; padding-bottom: 70vh; }
 #content p { margin: 0 0 0.6em; }
+#content .em { font-weight: 800; text-decoration: underline; text-decoration-color: var(--cue); text-underline-offset: .15em; }
+#content .br { color: var(--cue); opacity: .8; font-weight: 300; padding: 0 .15em; }
 #content .mk { font-family: var(--font-brand); font-size: 0.55em; letter-spacing: 0.06em; text-transform: uppercase; color: var(--cue); margin: 1.2em 0 0.5em; border-top: 1px solid rgba(255,181,71,.35); padding-top: 0.5em; }
 #content .note { color: #6f8fb8; font-style: italic; font-size: 0.7em; }
 #content .w { transition: opacity .25s, color .25s; }
@@ -135,83 +148,115 @@ input[type=range] { width: 100%; accent-color: var(--cue); }
 #readline .band { position: absolute; left: 0; right: 0; top: -0.75em; height: 1.5em; background: rgba(255,181,71,.07); border-top: 1px solid rgba(255,181,71,.25); border-bottom: 1px solid rgba(255,181,71,.25); }
 #shade { position: absolute; left: 0; right: 0; top: 0; pointer-events: none; background: linear-gradient(to bottom, rgba(0,0,0,.82), rgba(0,0,0,.35)); }
 
-#hud { position: absolute; left: 0; right: 0; bottom: 0; padding: 12px max(16px, env(safe-area-inset-right, 0px)) calc(12px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); background: linear-gradient(to top, rgba(0,0,0,.92), rgba(0,0,0,0)); display: flex; flex-direction: column; gap: 10px; transition: opacity .3s; z-index: 3; }
-#hud.hide { opacity: 0; pointer-events: none; }
+#hud { position: absolute; left: 0; right: 0; bottom: 0; padding: 6px max(12px, env(safe-area-inset-right, 0px)) calc(8px + env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px)); background: #0b0b0b; border-top: 1px solid #222; display: flex; flex-direction: column; gap: 4px; transition: opacity .3s, transform .3s; z-index: 3; color: #cfcfcf; }
+#hud.hide { opacity: 0; transform: translateY(100%); pointer-events: none; }
 #progress { height: 3px; background: #222; border-radius: 2px; overflow: hidden; }
 #progress i { display: block; height: 100%; width: 0; background: var(--cue); }
-#hud .btn { background: rgba(30,30,30,.9); border-color: #333; color: #eee; }
-#hud .btn.primary { background: var(--cue); color: #1b1307; border-color: var(--cue); }
-#hud .btn.rec { background: var(--live); border-color: var(--live); color: #fff; }
+#hud .btn, #sheet .btn { background: #1c1c1c; border-color: #333; color: #eee; }
+#hud .btn.primary, #sheet .btn.primary { background: var(--cue); color: #1b1307; border-color: var(--cue); }
 #hud .btn.listening { border-color: var(--live); color: #fff; }
 #hud .btn.listening::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--live); animation: blink 1s infinite; }
-.hudtools, #hudMore { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; color: #cfcfcf; font-variant-numeric: tabular-nums; }
-.grp { display: inline-flex; align-items: center; gap: 2px; background: rgba(30,30,30,.9); border: 1px solid #333; border-radius: 10px; padding: 2px; font-size: 13px; }
-.grp .gl { color: #8a8a8a; font-size: 11.5px; padding: 0 6px 0 8px; }
-.grp .seg { border: 0; }
-.ib { min-width: 36px; height: 32px; padding: 0 8px; border: 0; border-radius: 8px; background: transparent; color: #eee; cursor: pointer; font-size: 14px; }
+.hudinfo { display: flex; align-items: center; gap: 8px; min-height: 18px; font-size: 12.5px; overflow: hidden; white-space: nowrap; }
+#followChip { flex: none; color: var(--ok); font-weight: 600; }
+#followChip:empty { display: none; }
+#status { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; color: #9a9a9a; }
+#status.warn { color: var(--cue); }
+#status.live { color: #ddd; }
+#heard { font-size: 12px; color: #6d6d6d; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; max-width: 100%; }
+#heard:empty { display: none; }
+#spdBadge { flex: none; display: none; font-variant-numeric: tabular-nums; color: #bbb; }
+#spdBadge.on { display: inline; }
+#spdBadge b { color: #fff; font-size: 14px; }
+#spdBadge em { font-style: normal; font-weight: 600; }
+#spdBadge em.slow { color: #9fd2ff; } #spdBadge em.ok { color: var(--ok); } #spdBadge em.fast { color: var(--live); }
+.ib { min-width: 44px; height: 44px; padding: 0 10px; border: 1px solid #333; border-radius: 10px; background: #1c1c1c; color: #eee; cursor: pointer; font-size: 16px; display: inline-flex; align-items: center; justify-content: center; }
 .ib:hover { background: #2a2a2a; }
-#hudMore { display: none; padding: 8px; border: 1px solid #2a2a2a; border-radius: 12px; background: rgba(12,12,12,.92); }
-#hud.more #hudMore { display: flex; }
-#hMore[aria-expanded=true] { border-color: var(--cue); color: var(--cue); }
-.hudmain { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 10px; color: #cfcfcf; font-variant-numeric: tabular-nums; }
-.hudmain .hl, .hudmain .hr { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ib.big { min-width: 48px; height: 48px; font-size: 20px; border-radius: 50%; }
+.hudmain { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; font-variant-numeric: tabular-nums; }
+.hudmain .hl, .hudmain .hr { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .hudmain .hr { justify-content: flex-end; }
 .hudmain .hc { display: flex; align-items: center; gap: 12px; }
-.hudmain #hPlay { padding: 10px 20px; font-size: 16px; }
+.hudmain #hPlay { padding: 12px 20px; font-size: 16px; }
+#hMore[aria-expanded=true] { border-color: var(--cue); color: var(--cue); }
+#time { color: #888; font-size: 13px; }
+#prompter.live #time { display: none; }
+.micchip { display: inline-flex; align-items: center; gap: 6px; max-width: 150px; flex: 1 1 auto; min-width: 96px; height: 36px; padding: 0 10px; border: 1px solid #333; border-radius: 999px; background: #1c1c1c; color: #ddd; font-size: 12.5px; cursor: pointer; min-width: 0; }
+.micchip #micName { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+#micLevel { width: 32px; height: 6px; background: #333; border-radius: 3px; overflow: hidden; flex: none; }
+#micLevel i { display: block; height: 100%; width: 0; background: var(--ok); transition: width .08s; }
+#recBadge { display: none; align-items: center; gap: 6px; color: #fff; font-weight: 600; font-variant-numeric: tabular-nums; }
+#recBadge.on { display: inline-flex; }
+#recBadge::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--live); animation: blink 1s infinite; }
+#prompter.paused #recBadge::before { animation: none; background: var(--cue); }
+.recon { display: none !important; }
+#prompter.recording .recon { display: inline-flex !important; }
+#prompter.recording #cFlip { display: none !important; }
 .liveonly, .camonly { display: none !important; }
 #prompter.live .liveonly { display: inline-flex !important; }
+#prompter.live section.liveonly, #prompter.cam .srow.camonly { display: flex !important; }
 #prompter.cam .camonly { display: inline-flex !important; }
 #prompter.live .idleonly { display: none !important; }
 #prompter.live #cRec.liveonly { display: block !important; }
-@media (max-width: 560px) {
-  .hudmain { grid-template-columns: 1fr auto; }
-  .hudmain .hc { grid-column: 1 / -1; grid-row: 1; justify-content: center; }
-}
+#prompter.live.vmode #hPlay, #prompter.recording #hPlay { display: none; }
+/* settings sheet: solid panel from the bottom */
+#sheet { position: absolute; left: 0; right: 0; bottom: 0; max-height: 72%; overflow-y: auto; z-index: 7; background: #111; border-top: 1px solid #333; border-radius: 16px 16px 0 0; padding: 0 max(16px, env(safe-area-inset-right, 0px)) calc(16px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); color: #eee; transform: translateY(105%); transition: transform .25s; }
+#sheet.on { transform: none; }
+@media (min-width: 700px) { #sheet { left: 50%; right: auto; width: 560px; transform: translate(-50%, 105%); } #sheet.on { transform: translate(-50%, 0); } }
+#sheet .shead { position: sticky; top: 0; background: #111; display: flex; justify-content: space-between; align-items: center; padding: 12px 0 8px; z-index: 1; }
+#sheet section { display: flex; flex-direction: column; gap: 8px; padding: 10px 0; border-top: 1px solid #222; }
+#sheet h5 { margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: #8a8a8a; }
+.srow { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 14px; }
+.srow small { display: block; color: #777; font-size: 11.5px; }
+.srow .stp { display: inline-flex; align-items: center; gap: 8px; flex: none; }
+.srow .stp b { min-width: 3.2em; text-align: center; font-variant-numeric: tabular-nums; }
+.srow select { background: #1c1c1c; color: #fff; border: 1px solid #333; border-radius: 8px; padding: 10px 8px; max-width: 200px; font-size: 14px; }
+.bgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.bgrid .btn { justify-content: center; min-height: 44px; white-space: normal; text-align: center; }
+.seg.wide { display: flex; } .seg.wide button { flex: 1; padding: 12px; }
+.hint { margin: 0; font-size: 12px; color: #8a8a8a; }
+.hint:empty { display: none; }
+#cMon[aria-pressed=true], #hSpd[aria-pressed=true], #hRehearse[aria-pressed=true] { border-color: var(--ok); color: var(--ok); }
+/* review after a take */
+#review { position: absolute; inset: 0; z-index: 8; background: rgba(0,0,0,.85); display: none; align-items: center; justify-content: center; padding: 16px; }
+#review.on { display: flex; }
+#review .card { width: min(480px, 100%); max-height: 100%; overflow-y: auto; background: #151515; border: 1px solid #333; border-radius: 16px; padding: 16px; color: #eee; display: flex; flex-direction: column; gap: 10px; }
+#review h4 { margin: 0; font-size: 17px; }
+#review .meta { margin: 0; color: #999; font-size: 13px; }
+#rvMedia video { width: 100%; max-height: 45vh; background: #000; border-radius: 10px; }
+#rvMedia audio { width: 100%; }
+.rvacts { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.rvacts .btn { justify-content: center; min-height: 52px; white-space: normal; text-align: center; background: #1c1c1c; border-color: #333; color: #eee; }
+.rvacts .btn.primary { background: var(--cue); color: #1b1307; border-color: var(--cue); }
+.rvacts .btn.rec { background: var(--live); border-color: var(--live); color: #fff; }
+.rvacts .btn.done { color: var(--ok); border-color: var(--ok); }
+.rvmore { display: flex; justify-content: space-between; }
+.rvmore .btn { color: #bbb; }
 @keyframes blink { 50% { opacity: .2; } }
 .seg { display: inline-flex; border: 1px solid #333; border-radius: 8px; overflow: hidden; }
 .seg button { background: rgba(30,30,30,.9); border: 0; padding: 7px 12px; cursor: pointer; color: #bbb; }
 .seg button[aria-pressed=true] { background: var(--cue); color: #1b1307; font-weight: 600; }
 .seg button[aria-pressed=false] { color: #9a9a9a; }
-#prompter.live.vmode #hPlay { display: none; }
-#speedOut { min-width: 3.5em; text-align: center; }
-#status { font-size: 13px; color: #aaa; }
-#status.warn { color: var(--cue); }
-#status.live { color: #fff; }
-#heard { font-size: 12.5px; color: #777; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; max-width: 100%; }
+#prompter.cam #content p, #prompter.cam #content .mk { background: rgba(0,0,0,.55); border-radius: .25em; padding: 0 .25em; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
 /* camera mode */
 #camVideo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: none; background: #000; }
 #camVideo.front { transform: scaleX(-1); }
 #prompter.cam #camVideo { display: block; }
 #prompter.cam { background: #000; }
-#camShade { position: absolute; left: 0; right: 0; top: 0; height: 56%; display: none; pointer-events: none; background: linear-gradient(to bottom, rgba(0,0,0,.72) 0%, rgba(0,0,0,.55) 70%, rgba(0,0,0,0) 100%); }
+#camShade { position: absolute; left: 0; right: 0; top: 0; height: 56%; display: none; pointer-events: none; background: linear-gradient(to bottom, rgba(0,0,0,.45) 0%, rgba(0,0,0,.2) 70%, rgba(0,0,0,0) 100%); }
 #prompter.cam #camShade { display: block; }
 #prompter.cam #stage { overflow: hidden; }
-#hArea { display: none !important; }
-#prompter.cam #hArea { display: inline-flex !important; }
 #prompter.cam #content { padding-bottom: 40vh; }
 #prompter.cam #content { text-shadow: 0 2px 6px rgba(0,0,0,.9); }
 #prompter.cam #shade { display: none !important; }
-#recBadge { position: absolute; top: calc(12px + env(safe-area-inset-top, 0px)); left: max(12px, env(safe-area-inset-left, 0px)); z-index: 5; display: none; align-items: center; gap: 8px; background: rgba(0,0,0,.6); color: #fff; padding: 6px 12px; border-radius: 999px; font-variant-numeric: tabular-nums; font-weight: 600; }
-#recBadge.on { display: inline-flex; }
-#spdBadge { position: absolute; top: calc(12px + env(safe-area-inset-top, 0px)); right: max(12px, env(safe-area-inset-right, 0px)); z-index: 5; display: none; align-items: baseline; gap: 6px; background: rgba(0,0,0,.65); color: #fff; padding: 6px 12px; border-radius: 999px; font-variant-numeric: tabular-nums; font-size: 13px; }
-#spdBadge.on { display: inline-flex; }
-#spdBadge b { font-size: 20px; }
-#spdBadge span { color: #aaa; }
-#spdBadge em { font-style: normal; font-weight: 600; padding-left: 4px; }
-#spdBadge em.slow { color: #9fd2ff; } #spdBadge em.ok { color: var(--ok); } #spdBadge em.fast { color: var(--live); }
 #spdCard { position: absolute; left: 50%; top: 30%; transform: translate(-50%, -50%); z-index: 6; width: min(420px, calc(100% - 32px)); background: #151515; border: 1px solid #333; border-radius: 14px; padding: 16px; color: #eee; display: none; }
 #spdCard.on { display: block; }
 #spdCard h4 { margin: 0 0 8px; font-size: 16px; }
 #spdCard p { margin: 0 0 8px; }
 #spdCard #spdSum { font-size: 15px; }
 #spdCard .acts { display: flex; gap: 8px; flex-wrap: wrap; }
-#cMon[aria-pressed=true], #hSpd[aria-pressed=true] { border-color: var(--ok); color: var(--ok); }
-#recBadge::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--live); animation: blink 1s infinite; }
 .micpick { display: inline-flex; align-items: center; gap: 8px; background: rgba(30,30,30,.9); border: 1px solid #333; border-radius: 8px; padding: 4px 8px; color: #ddd; font-size: 13px; max-width: 100%; }
 .micpick select { background: transparent; border: 0; color: #fff; max-width: 190px; min-width: 0; padding: 4px 0; }
 .micpick select option { background: #111; }
-#micLevel { width: 48px; height: 6px; background: #333; border-radius: 3px; overflow: hidden; flex: none; }
-#micLevel i { display: block; height: 100%; width: 0; background: var(--ok); transition: width .08s; }
 .recbtn { width: 64px; height: 64px; border-radius: 50%; border: 4px solid #fff; background: var(--live); cursor: pointer; flex: none; }
 .recbtn.on { border-radius: 16px; background: var(--live); transform: scale(.82); }
 #takes { position: absolute; inset: auto 0 0 0; max-height: 75%; overflow-y: auto; background: #111; border-top: 1px solid #333; z-index: 6; padding: 16px max(16px, env(safe-area-inset-right, 0px)) calc(16px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); display: none; color: #eee; }
@@ -256,6 +301,10 @@ input[type=range] { width: 100%; accent-color: var(--cue); }
 .tk input.nm:focus { border-bottom-color: var(--cue); outline: none; }
 .tk .meta { color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; }
 .tk .acts { display: flex; flex-wrap: wrap; gap: 6px; }
+.tk .acts.more2 { display: none; margin-top: 6px; } .tk .acts.more2.on { display: flex; }
+.tk .meta.unsaved { color: var(--cue); }
+.tk .nm { width: 100%; text-overflow: ellipsis; }
+@media (max-width: 560px) { .tk { grid-template-columns: 64px minmax(0, 1fr); } .tk .thumb { width: 64px; } }
 .tk .star[aria-pressed=true] { color: var(--cue); border-color: var(--cue); }
 .tk .player { grid-column: 1 / -1; width: 100%; max-height: 70vh; background: #000; border-radius: 8px; }
 #takes .tk { background: #1a1a1a; border-color: #2a2a2a; color: #eee; }
@@ -282,8 +331,8 @@ input[type=range] { width: 100%; accent-color: var(--cue); }
     <div class="spacer"></div>
     <nav class="tools" aria-label="Công cụ">
       <button class="btn ghost small" id="btnLibrary" type="button">🎞 Thư viện</button>
-      <button class="btn ghost small" id="btnExport" type="button">💾 Sao lưu</button>
-      <button class="btn ghost small" id="btnAbout" type="button">♥ Liên hệ</button>
+      <span class="menuwrap"><button class="btn ghost small" id="btnMenu" type="button" aria-expanded="false" aria-label="Thêm">⋯</button>
+        <span class="menu" id="topMenu"><button class="btn ghost small" id="btnExport" type="button">💾 Sao lưu kịch bản</button><button class="btn ghost small" id="btnAbout" type="button">♥ Liên hệ & ủng hộ</button><button class="btn ghost small" id="btnSettings" type="button">⚙ Cài đặt</button></span></span>
     </nav>
     <input type="file" id="fileIn" accept=".txt,.md,.markdown,.pdf,.docx,.json,text/plain,text/markdown,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden>
     <div class="actions">
@@ -318,10 +367,11 @@ input[type=range] { width: 100%; accent-color: var(--cue); }
         <button class="btn small ghost danger" id="btnDel" type="button">Xoá</button>
         <span class="confirm" id="delConfirm">Xoá kịch bản này? <button class="btn small danger" id="delYes" type="button">Xoá</button><button class="btn small" id="delNo" type="button">Huỷ</button></span>
       </div>
-      <p class="hint">Dòng bắt đầu bằng <code>##</code> là mốc đoạn (nhảy bằng PageUp/PageDown hoặc remote bấm slide). Chữ trong <code>[ngoặc vuông]</code> là ghi chú cho bạn, không cần đọc.</p>
+      <p class="hint">Dòng bắt đầu bằng <code>##</code> là mốc đoạn (nhảy bằng PageUp/PageDown hoặc remote bấm slide). Chữ trong <code>[ngoặc vuông]</code> là ghi chú cho bạn, không cần đọc. Dấu <code>/</code> đứng riêng là chỗ ngắt hơi, <code>//</code> là ngừng lâu. Bọc <code>*chữ*</code> để nhấn mạnh.</p>
     </section>
 
-    <aside class="settings" aria-label="Cài đặt hiển thị">
+    <aside class="settings" id="settingsPane" aria-label="Cài đặt hiển thị">
+      <button class="btn stoggle" id="stoggle" type="button" aria-expanded="false">⚙ Cài đặt hiển thị, quay và Drive <span aria-hidden="true">▾</span></button>
       <h3>Hiển thị</h3>
       <div class="preview" id="preview"><div class="pv" id="pv">Xin chào, đây là cỡ chữ khi đọc.</div></div>
       <div class="field"><div class="row"><label for="sFont">Cỡ chữ</label><output id="oFont"></output></div><input type="range" id="sFont" min="24" max="140" step="2"></div>
@@ -344,13 +394,14 @@ input[type=range] { width: 100%; accent-color: var(--cue); }
       <label class="toggle">Lật gương dọc <input type="checkbox" id="tMirrorY"></label>
       <label class="toggle">Làm tối phần đã đọc <input type="checkbox" id="tShade"></label>
       <label class="toggle">Đếm ngược 3 giây <input type="checkbox" id="tCount"></label>
+      <label class="toggle">Mở app là vào thẳng màn quay <input type="checkbox" id="tAutoCam"></label>
       <h3 id="driveH">Google Drive</h3>
       <div class="field"><div class="row"><label for="sGcid">Mã kết nối Google riêng (không bắt buộc)</label></div><input id="sGcid" class="txt" placeholder="Để trống: dùng mã có sẵn của CueCam" autocomplete="off" spellcheck="false"></div>
       <label class="toggle">Tự tải lên Drive sau khi quay <input type="checkbox" id="tDriveAuto"></label>
       <div class="drow"><button class="btn small" id="btnDrive" type="button">☁ Kết nối Google Drive</button><span class="meta" id="driveState">Chưa kết nối</span></div>
       <p class="meta">Video và file ghi âm được tải vào thư mục <b>CueCam</b> trên Drive của bạn, chia theo từng kịch bản. App chỉ thấy các file do chính nó tạo.</p>
-      <h3>Phím tắt khi đọc</h3>
-      <div class="kbd">
+      <h3 class="deskonly">Phím tắt khi đọc</h3>
+      <div class="kbd deskonly">
         <kbd>Space</kbd><span>Chạy / dừng (hoặc bật/tắt nghe)</span>
         <kbd>↑ ↓</kbd><span>Tăng / giảm tốc độ</span>
         <kbd>← →</kbd><span>Lùi / tiến một chút</span>
@@ -369,8 +420,6 @@ input[type=range] { width: 100%; accent-color: var(--cue); }
 <div id="prompter" role="dialog" aria-label="Màn hình đọc">
   <video id="camVideo" playsinline muted autoplay></video>
   <div id="camShade"></div>
-  <div id="recBadge">0:00</div>
-  <div id="spdBadge" aria-live="polite"><b id="spdVal">–</b><span>từ/phút</span><em id="spdTag"></em></div>
   <div id="spdCard" role="dialog" aria-label="Kết quả đo tốc độ nói"><h4>⏱ Tốc độ nói</h4><p id="spdSum"></p><p class="meta" id="spdNote"></p><div class="acts"><button class="btn small primary" id="spdUse" type="button">Dùng làm nhịp chạy chữ</button><button class="btn small" id="spdClose" type="button">Đóng</button></div></div>
   <div id="stage">
     <div id="scroller"><div id="content"></div></div>
@@ -379,45 +428,53 @@ input[type=range] { width: 100%; accent-color: var(--cue); }
   </div>
   <div id="countdown"></div>
   <div id="takes" aria-label="Các take đã quay"><h4><span>Các take đã quay</span><button class="btn small" id="takesClose" type="button">Đóng</button></h4><p class="meta" id="takesNote">Các take của kịch bản này, đã lưu trong trình duyệt. Xem tất cả ở Thư viện.</p><div id="takeList"></div></div>
+  <div id="review" role="dialog" aria-label="Xem lại take vừa quay"><div class="card">
+    <h4 id="rvTitle">Take vừa quay</h4><p class="meta" id="rvMeta"></p>
+    <div id="rvMedia"></div>
+    <div class="rvacts"><button class="btn primary" id="rvSave" type="button">💾 Lưu vào máy</button><button class="btn rec" id="rvAgain" type="button">↺ Quay lại</button><button class="btn" id="rvDrive" type="button">☁ Lên Drive</button></div>
+    <div class="rvmore"><button class="btn small ghost" id="rvSrt" type="button">📝 Phụ đề .srt</button><button class="btn small ghost" id="rvClose" type="button">Xong</button></div>
+  </div></div>
+  <div id="sheet" aria-label="Bảng chỉnh">
+    <div class="shead"><b>Chỉnh</b><button class="btn small" id="sheetClose" type="button">Xong</button></div>
+    <section><h5>Chạy chữ</h5>
+      <div class="seg wide" role="group" aria-label="Chế độ chạy chữ">
+        <button type="button" id="modeAuto" aria-pressed="true">Tự động</button>
+        <button type="button" id="modeVoice" aria-pressed="false">Theo giọng nói</button>
+      </div>
+      <div class="srow" id="autoCtl"><span>Tốc độ cuộn tự động</span><span class="stp"><button class="ib" id="hSlower" type="button" aria-label="Chậm hơn">−</button><b id="speedOut"></b><button class="ib" id="hFaster" type="button" aria-label="Nhanh hơn">+</button></span></div>
+      <div class="srow" id="rhyCtl"><span>Nhịp khi quay trên điện thoại<small>dùng khi máy không nhận được từng chữ</small></span><span class="stp"><button class="ib" id="rSlower" type="button" aria-label="Nhịp chậm hơn">−</button><b id="rOut"></b><button class="ib" id="rFaster" type="button" aria-label="Nhịp nhanh hơn">+</button></span></div>
+    </section>
+    <section><h5>Chữ</h5>
+      <div class="srow"><span>Cỡ chữ</span><span class="stp"><button class="ib" id="hFontDn" type="button" aria-label="Chữ nhỏ hơn">A−</button><b id="fontOut"></b><button class="ib" id="hFontUp" type="button" aria-label="Chữ to hơn">A+</button></span></div>
+      <div class="srow"><span>Dòng đang đọc</span><span class="stp"><button class="ib" id="hFocusUp" type="button" aria-label="Đưa dòng đang đọc lên trên">▲</button><b id="lineOut"></b><button class="ib" id="hFocusDn" type="button" aria-label="Đưa dòng đang đọc xuống dưới">▼</button></span></div>
+      <div class="srow camonly"><span>Vùng chữ khi quay</span><span class="stp"><button class="ib" id="aDn" type="button" aria-label="Vùng chữ nhỏ hơn">−</button><b id="hArea">65%</b><button class="ib" id="aUp" type="button" aria-label="Vùng chữ lớn hơn">+</button></span></div>
+    </section>
+    <section class="liveonly"><h5>Micro và giọng</h5>
+      <div class="srow"><label for="cMic">Micro</label><span class="stp"><select id="cMic" aria-label="Chọn micro"><option value="">Mặc định</option></select><button class="ib" id="cMicScan" type="button" aria-label="Tìm lại micro">🔄</button></span></div>
+      <div class="srow"><label for="cFx">Giọng</label><span class="stp"><select id="cFx" aria-label="Chỉnh giọng"><option value="raw">Gốc</option><option value="clear">Giọng rõ</option><option value="studio">Studio (lọc ồn AI)</option></select><button class="btn small" id="cMon" type="button" aria-pressed="false">🎧 Nghe thử</button></span></div>
+      <p class="hint" id="micHint"></p>
+    </section>
+    <section class="liveonly"><h5>Quay</h5>
+      <div class="srow camonly"><label for="cAspect">Khung hình</label><span class="stp"><select id="cAspect"><option value="9:16">Dọc 9:16 (TikTok, Reels)</option><option value="16:9">Ngang 16:9 (YouTube)</option></select></span></div>
+      <div class="bgrid"><button class="btn small" id="hRehearse" type="button" aria-pressed="false">🎯 Tập dượt (không ghi)</button><button class="btn small" id="cTakes" type="button">Các take (0)</button><button class="btn small" id="cOff" type="button">Tắt camera</button></div>
+    </section>
+    <section><h5>Khác</h5>
+      <div class="bgrid"><button class="btn small" id="hSpd" type="button" aria-pressed="false">⏱ Đo tốc độ nói</button><button class="btn small" id="hMirror" type="button">⇋ Lật gương</button><button class="btn small" id="hTop" type="button">⤒ Về đầu</button><button class="btn small" id="hFull" type="button">⛶ Toàn màn hình</button><button class="btn small idleonly" id="hCam" type="button">🎥 Bật camera</button><button class="btn small idleonly" id="hAud" type="button">🎙 Ghi âm</button></div>
+    </section>
+  </div>
   <div id="hud">
     <div id="progress"><i></i></div>
-    <div class="hudtools">
-      <div class="grp"><span class="gl">Cuộn</span>
-        <div class="seg" role="group" aria-label="Chế độ cuộn">
-          <button type="button" id="modeAuto" aria-pressed="true">Tự động</button>
-          <button type="button" id="modeVoice" aria-pressed="false">Theo giọng</button>
-        </div></div>
-      <div class="grp" id="autoCtl"><button class="ib" id="hSlower" type="button" aria-label="Chậm hơn">−</button><span id="speedOut"></span><button class="ib" id="hFaster" type="button" aria-label="Nhanh hơn">+</button></div>
-      <div class="grp"><span class="gl">Chữ</span><button class="ib" id="hFontDn" type="button" aria-label="Chữ nhỏ hơn">A−</button><button class="ib" id="hFontUp" type="button" aria-label="Chữ to hơn">A+</button></div>
-      <div class="grp"><span class="gl">Dòng đọc</span><button class="ib" id="hFocusUp" type="button" aria-label="Đưa dòng đang đọc lên trên">▲</button><button class="ib" id="hFocusDn" type="button" aria-label="Đưa dòng đang đọc xuống dưới">▼</button></div>
-      <button class="btn small" id="hSpd" type="button" aria-pressed="false">⏱ Đo tốc độ</button>
-      <button class="btn small" id="hMore" type="button" aria-expanded="false">⋯ Thêm</button>
-    </div>
-    <div id="hudMore">
-      <button class="btn small" id="hArea" type="button">Vùng chữ 65%</button>
-      <button class="btn small" id="hMirror" type="button">⇋ Lật gương</button>
-      <button class="btn small" id="hTop" type="button">⤒ Về đầu</button>
-      <button class="btn small" id="hFull" type="button">⛶ Toàn màn hình</button>
-      <label class="micpick liveonly" for="cMic">🎙 Mic <select id="cMic" aria-label="Chọn micro"><option value="">Mặc định</option></select><span id="micLevel" aria-hidden="true"><i></i></span></label>
-      <label class="micpick liveonly" for="cFx">✨ Giọng <select id="cFx" aria-label="Chỉnh giọng"><option value="raw">Gốc</option><option value="clear">Giọng rõ</option><option value="studio">Studio (lọc ồn AI)</option></select></label>
-      <button class="btn small liveonly" id="cMon" type="button" aria-pressed="false">🎧 Nghe thử</button>
-      <button class="btn small liveonly" id="cTakes" type="button">Các take (0)</button>
-      <button class="btn small liveonly" id="cOff" type="button">Tắt camera</button>
-    </div>
+    <div class="hudinfo"><span id="recBadge">0:00</span><span id="followChip"></span><span id="status"></span><span id="spdBadge"><b id="spdVal">–</b> từ/phút <em id="spdTag"></em></span></div>
+    <div id="heard"></div>
     <div class="hudmain">
-      <div class="hl"><button class="btn small" id="hExit" type="button">✕ Thoát</button><span id="time">0:00</span></div>
+      <div class="hl"><button class="ib big" id="hExit" type="button" aria-label="Thoát">✕</button><button class="micchip liveonly" id="micChip" type="button" aria-label="Micro đang dùng, chạm để đổi"><span id="micName">Mic</span><span id="micLevel" aria-hidden="true"><i></i></span></button><span id="time">0:00</span></div>
       <div class="hc">
-        <button class="btn small camonly" id="cFlip" type="button" aria-label="Đổi camera trước/sau">↺ Đổi cam</button>
+        <button class="ib big recon" id="cPause" type="button" aria-label="Tạm dừng quay">⏸</button>
         <button class="recbtn liveonly" id="cRec" type="button" aria-label="Bắt đầu quay"></button>
         <button class="btn primary" id="hPlay" type="button">▶ Chạy</button>
       </div>
-      <div class="hr">
-        <button class="btn small rec idleonly" id="hCam" type="button">🎥 Video</button>
-        <button class="btn small idleonly" id="hAud" type="button">🎙 Ghi âm</button>
-      </div>
+      <div class="hr"><button class="ib big camonly" id="cFlip" type="button" aria-label="Đổi camera trước/sau">↺</button><button class="ib big" id="hMore" type="button" aria-expanded="false" aria-label="Chỉnh">⚙</button></div>
     </div>
-    <div id="status"></div>
-    <div id="heard"></div>
   </div>
 </div>
 <div id="about" role="dialog" aria-modal="true" aria-labelledby="aboutTitle">
@@ -460,7 +517,7 @@ input[type=range] { width: 100%; accent-color: var(--cue); }
     get(k, d) { try { const v = localStorage.getItem('cuecam.' + k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
     set(k, v) { try { localStorage.setItem('cuecam.' + k, JSON.stringify(v)); return true; } catch (e) { return false; } }
   };
-  const toast = msg => { const t = $('toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove('on'), 2600); };
+  const toast = msg => { const t = $('toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove('on'), Math.min(9000, 2200 + String(msg).length * 45)); };
 
   /* ---------------- Data ---------------- */
   const SAMPLE = {
@@ -493,7 +550,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
   if (!S.v2) { S.mode = 'voice'; S.v2 = 1; } // 2026-11-19: voice-follow became the default
   var camActive = false;
   const FS = () => camActive ? S.camFont : S.font; // font size on the prompter stage
-  if (!S.v2) { if (S.line === 30) S.line = 12; S.v2 = 1; }
+  if (!S.v3) { if (S.line === 30) S.line = 12; S.v3 = 1; }
   const saveSettings = () => store.set('settings', S);
 
   const cur = () => scripts.find(s => s.id === currentId);
@@ -504,7 +561,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
 
   /* ---------------- Text helpers ---------------- */
   const norm = w => w.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/[^a-z0-9]/g, '');
-  const countWords = t => (t.replace(/\[[^\]]*\]/g, ' ').replace(/^##.*$/gm, ' ').match(/\S+/g) || []).length;
+  const countWords = t => (t.replace(/\[[^\]]*\]/g, ' ').replace(/^##.*$/gm, ' ').replace(/(^|\s)\/\/?(?=\s|$)/g, ' ').match(/\S+/g) || []).length;
   const fmt = sec => { sec = Math.max(0, Math.round(sec)); return Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0'); };
   const esc = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -666,14 +723,14 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
     pv.style.fontSize = Math.max(14, S.font * 0.42) + 'px'; pv.style.setProperty('--lh', S.lh); pv.style.color = S.color;
     pv.style.width = S.width + '%'; pv.style.textAlign = S.center ? 'center' : 'left';
     content.style.fontSize = FS() + 'px';
-    stage.style.bottom = camActive ? (100 - S.camArea) + '%' : '';
+    stage.style.bottom = camActive ? (100 - S.camArea) + '%' : (P.open ? ($('hud').offsetHeight || 0) + 'px' : '');
     $('camShade').style.height = (S.camArea + 6) + '%';
-    $('hArea').textContent = 'Vùng chữ ' + S.camArea + '%'; content.style.lineHeight = S.lh; content.style.color = S.color;
+    $('hArea').textContent = S.camArea + '%'; $('fontOut').textContent = FS() + 'px'; $('lineOut').textContent = S.line + '%'; $('rOut').textContent = S.wpm; content.style.lineHeight = S.lh; content.style.color = S.color;
     content.style.width = S.width + '%'; content.style.textAlign = S.center ? 'center' : 'left';
     content.style.paddingLeft = content.style.paddingRight = S.width >= 95 ? '24px' : '0';
-    stage.style.transform = `scale(${S.mirrorX ? -1 : 1}, ${S.mirrorY ? -1 : 1})`;
+    stage.style.transform = camActive ? '' : `scale(${S.mirrorX ? -1 : 1}, ${S.mirrorY ? -1 : 1})`; // a phone filming itself never needs mirrored text
     $('shade').style.display = S.shade ? '' : 'none';
-    $('speedOut').textContent = 'Tốc độ ' + S.speed;
+    $('speedOut').textContent = S.speed;
     if (P.open) { measure(); place(); }
   }
 
@@ -683,10 +740,19 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
     text.replace(/\r\n/g, '\n').split('\n').forEach(line => {
       if (/^\s*##/.test(line)) { const d = document.createElement('div'); d.className = 'mk'; d.textContent = line.replace(/^\s*#+\s*/, '') || '•'; content.appendChild(d); return; }
       if (!line.trim()) return;
-      const p = document.createElement('p'); let html = '';
+      const p = document.createElement('p'); let html = '', em = false;
       line.replace(/(\[[^\]]*\])|(\S+)|(\s+)/g, (m, note, word, sp) => {
         if (note) html += `<span class="note">${esc(note)}</span>`;
-        else if (word) { const n = norm(word); if (n) { html += `<span class="w" data-i="${i}">${esc(word)}</span>`; P.words.push({ n }); i++; } else html += esc(word); }
+        else if (word === '/' || word === '//') html += `<span class="br" title="ngắt hơi">${word === '//' ? '‖' : '|'}</span>`;
+        else if (word) {
+          // *nhấn mạnh*: emphasis, may span several words; a trailing " /" style pause is handled above
+          let w = word; const open = /^\*/.test(w), close = /\*[.,!?…;:]*$/.test(w) && w.length > 1;
+          if (open) { em = true; w = w.slice(1); }
+          if (close) w = w.replace(/\*([.,!?…;:]*)$/, '$1');
+          const n = norm(w);
+          if (n) { html += `<span class="w${em ? ' em' : ''}" data-i="${i}">${esc(w)}</span>`; P.words.push({ n }); i++; } else html += esc(w);
+          if (close) em = false;
+        }
         else html += ' ';
         return m;
       });
@@ -714,12 +780,13 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
   function openPrompter() {
     const s = cur(); buildContent(s.body);
     $('prompter').classList.add('on'); P.open = true; P.pos = 0; P.target = 0; P.idx = 0; P.elapsed = 0; P.playing = false;
-    applyLook(); setMode(S.mode, true); setPlay(false); showHud();
+    applyLook(); P.pos = P.target = (P.tops && P.tops[0]) || 0; place(); setMode(S.mode, true); setPlay(false); showHud();
     requestWake(); P.last = performance.now(); requestAnimationFrame(tick);
     try { $('prompter').focus(); } catch (e) {}
   }
   function closePrompter() {
     if (cam.rec) stopRec();
+    hideReview(); sheet(false); stopRehearse(true);
     spdStop(false); $('spdBadge').classList.remove('on'); $('spdCard').classList.remove('on');
     camOff();
     stopVoice(); setPlay(false); P.open = false; $('prompter').classList.remove('on'); releaseWake();
@@ -760,7 +827,8 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
     spdStep(now);
     place();
     $('time').textContent = fmt(P.elapsed);
-    if (P.playing || voiceActive()) { if (now - P.hudT > 2500) $('hud').classList.add('hide'); }
+    if ((P.playing || voiceActive()) && !cam.stream && !$('sheet').classList.contains('on')) { if (now - P.hudT > 3000) $('hud').classList.add('hide'); }
+    followTick(now); markTick();
     requestAnimationFrame(tick);
   }
   function showHud() { P.hudT = performance.now(); $('hud').classList.remove('hide'); }
@@ -823,7 +891,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
     const heard = finalTail.concat(partialTail).slice(-10);
     $('heard').textContent = heard.length ? 'Nghe được: ' + heard.map(h => h.raw).join(' ') : '';
     if (!heard.length || !P.words.length) return;
-    const W = P.words, start = Math.max(0, P.idx - 4), end = Math.min(W.length, P.idx + 45);
+    const W = P.words, start = Math.max(0, P.idx - 4), end = Math.min(W.length, P.idx + 150);
     let best = null;
     for (let k = Math.min(4, heard.length); k >= 1; k--) {
       const tail = heard.slice(-k);
@@ -835,6 +903,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
         // single short word only counts if it is close to where we are
         if (k === 1 && (tail[0].n.length < 3 || after - P.idx > 6)) continue;
         if (k === 2 && after - P.idx > 25) continue;
+        if (k === 3 && after - P.idx > 80) continue;
         if (!best || Math.abs(after - P.idx - 1) < Math.abs(best - P.idx - 1)) best = after;
       }
       if (best !== null) break;
@@ -872,7 +941,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
     if (hy.on && now - hy.lastWord < 3000) {
       // words are arriving: make sure the recording still has sound
       if (rms < 0.0015) { hy.flatSince = hy.flatSince || now; } else hy.flatSince = 0;
-      if (hy.flatSince && now - hy.flatSince > 2500) {
+      if (hy.flatSince && now - hy.flatSince > 1500) {
         hy.on = false; if (rec) { const r = rec; rec = null; try { r.abort ? r.abort() : r.stop(); } catch (e) {} }
         const m = 'Máy này tắt tiếng video khi nhận giọng, nên app đã tắt nhận từng chữ để giữ tiếng. Chữ vẫn chạy theo nhịp nói.';
         setStatus(m, 'warn'); toast(m);
@@ -886,6 +955,13 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
       const i = Math.floor(rhythm.fidx);
       if (i > P.idx && i <= P.words.length) setIdx(i);
     }
+  }
+  function followTick(now) {
+    if (followTick.t && now - followTick.t < 400) return; followTick.t = now;
+    let t = '';
+    if (S.mode === 'voice' && voiceActive()) t = rhythm.on && !(hy.on && now - hy.lastWord < 2500) ? '● Theo nhịp ' + S.wpm + ' từ/phút' : '● Theo từng chữ';
+    else if (S.mode === 'auto' && P.playing) t = '● Tự cuộn';
+    if ($('followChip').textContent !== t) $('followChip').textContent = t;
   }
   /* ---------- Speaking-speed meter ----------
      Words come from speech recognition when it runs; otherwise (phones while recording,
@@ -989,9 +1065,9 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
   function markVoice() {
     $('hPlay').textContent = voiceOn ? '■ Ngừng nghe' : '🎙 Bắt đầu nghe';
     $('hPlay').classList.toggle('listening', voiceOn);
-    const rh = voiceOn && rhythm.on;
-    $('autoCtl').style.display = (S.mode === 'auto' || rh) ? 'inline-flex' : 'none';
-    if (rh) $('speedOut').textContent = 'Nhịp ' + S.wpm + ' từ/phút'; else $('speedOut').textContent = 'Tốc độ ' + S.speed;
+    $('autoCtl').style.display = S.mode === 'auto' ? 'flex' : 'none';
+    $('rhyCtl').style.display = S.mode === 'voice' ? 'flex' : 'none';
+    $('speedOut').textContent = S.speed; $('rOut').textContent = S.wpm;
     if (!voiceOn) { showHud(); $('heard').textContent = ''; }
   }
   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.platform || ''));
@@ -1047,7 +1123,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
     clearTimeout(recTimer); clearTimeout(recWatch);
     if (rec) { const r = rec; rec = null; try { r.abort ? r.abort() : r.stop(); } catch (e) {} }
     if (dict && dict.active()) dict.stop().catch(() => {});
-    if (voiceOn) { voiceOn = false; markVoice(); setStatus('Đã ngừng nghe. Bấm "Bắt đầu nghe" để tiếp tục từ chỗ đang dừng.'); }
+    if (voiceOn) { voiceOn = false; markVoice(); setStatus(cam.stream ? 'Sẵn sàng. Bấm nút đỏ để quay.' : 'Đã ngừng nghe. Bấm "Bắt đầu nghe" để tiếp tục từ chỗ đang dừng.'); }
   }
 
   function setMode(m, silent) {
@@ -1055,7 +1131,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
     S.mode = m; saveSettings();
     $('modeAuto').setAttribute('aria-pressed', String(m === 'auto'));
     $('modeVoice').setAttribute('aria-pressed', String(m === 'voice'));
-    $('autoCtl').style.display = m === 'auto' ? 'inline-flex' : 'none';
+    $('autoCtl').style.display = m === 'auto' ? 'flex' : 'none'; $('rhyCtl').style.display = m === 'voice' ? 'flex' : 'none';
     content.classList.toggle('voice', m === 'voice'); $('prompter').classList.toggle('vmode', m === 'voice');
     $('heard').textContent = '';
     if (m === 'voice') {
@@ -1119,10 +1195,16 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
     else { thumb = document.createElement('video'); thumb.className = 'thumb'; thumb.muted = true; thumb.playsInline = true; thumb.preload = 'metadata'; thumb.src = urlFor(t) + '#t=0.3'; }
     const info = document.createElement('div'); info.className = 'info';
     info.innerHTML = `<input class="nm" aria-label="Tên take"><div class="meta"></div>
-      <div class="acts"><button class="btn small star" type="button" aria-pressed="${!!t.star}">⭐ Take tốt</button><button class="btn small" data-a="play" type="button">▶ Xem</button><button class="btn small primary" data-a="save" type="button">Lưu về máy</button><button class="btn small drv" data-a="drive" type="button">☁ Lên Drive</button><button class="btn small danger" data-a="del" type="button">Xoá</button></div>`;
+      <div class="acts"><button class="btn small primary" data-a="save" type="button">💾 Lưu</button><button class="btn small drv" data-a="drive" type="button">☁ Drive</button><button class="btn small" data-a="play" type="button">▶ Xem</button><button class="btn small" data-a="more" type="button" aria-expanded="false">⋯</button></div>
+      <div class="acts more2"><button class="btn small star" type="button" aria-pressed="${!!t.star}">⭐ Take tốt</button><button class="btn small" data-a="srt" type="button">📝 Phụ đề .srt</button><button class="btn small danger" data-a="del" type="button">Xoá</button></div>`;
     const nm = info.querySelector('.nm'); nm.value = t.name;
     if (isAud) info.querySelector('[data-a=play]').textContent = '▶ Nghe';
-    info.querySelector('.meta').textContent = `${fmt(t.dur)} · ${fmtSize(t.size)} · ${t.ext.toUpperCase()}${t.wpm ? ' · ' + t.wpm + ' từ/phút' : ''}${t.fx && t.fx !== 'raw' ? ' · ' + (FXN[t.fx] || t.fx) : ''} · ${fmtDate(t.created)}`;
+    const metaTxt = () => `${t.saved || t.driveLink ? '✓ Đã lưu ra ngoài' : '⚠ Chưa lưu ra máy'} · ${fmt(t.dur)} · ${fmtSize(t.size)} · ${t.ext.toUpperCase()}${t.wpm ? ' · ' + t.wpm + ' từ/phút' : ''}${t.fx && t.fx !== 'raw' ? ' · ' + (FXN[t.fx] || t.fx) : ''} · ${fmtDate(t.created)}`;
+    const meta = info.querySelector('.meta'); meta.textContent = metaTxt(); meta.classList.toggle('unsaved', !(t.saved || t.driveLink));
+    const refreshMeta = () => { meta.textContent = metaTxt(); meta.classList.toggle('unsaved', !(t.saved || t.driveLink)); };
+    const mb = info.querySelector('[data-a=more]'), m2 = info.querySelector('.more2');
+    mb.onclick = () => { const on = !m2.classList.contains('on'); m2.classList.toggle('on', on); mb.setAttribute('aria-expanded', String(on)); };
+    const srtB = info.querySelector('[data-a=srt]'); if (!t.srt) srtB.remove(); else srtB.onclick = () => saveSrt(t);
     nm.addEventListener('change', () => { t.name = nm.value.trim() || t.name; nm.value = t.name; patchTake(t.id, { name: t.name }); });
     const star = info.querySelector('.star');
     star.onclick = () => { t.star = !t.star; star.setAttribute('aria-pressed', String(t.star)); d.classList.toggle('best', t.star); patchTake(t.id, { star: t.star }); onChange && onChange(); };
@@ -1130,15 +1212,15 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
       const old = d.querySelector('.player'); if (old) { old.pause(); old.remove(); return; }
       const v = document.createElement(isAud ? 'audio' : 'video'); v.className = 'player' + (isAud ? ' aud' : ''); v.src = urlFor(t); v.controls = true; v.playsInline = true; d.appendChild(v); v.play().catch(() => {});
     };
-    info.querySelector('[data-a=save]').onclick = () => saveTake(t);
+    info.querySelector('[data-a=save]').onclick = () => saveTake(t).then(refreshMeta);
     const drv = info.querySelector('[data-a=drive]');
-    const drvShow = () => { if (t.driveLink) { drv.textContent = '✓ Trên Drive'; drv.classList.add('done'); } };
+    const drvShow = () => { if (t.driveLink) { drv.textContent = '✓ Drive'; drv.classList.add('done'); } };
     drvShow();
     drv.onclick = () => {
       if (t.driveLink) { window.open(t.driveLink, '_blank', 'noopener'); return; }
       if (drv.dataset.busy) return; drv.dataset.busy = '1';
       driveUpload(t, p => { drv.textContent = '☁ ' + p + '%'; })
-        .then(ok => { delete drv.dataset.busy; if (ok) drvShow(); else drv.textContent = '☁ Lên Drive'; });
+        .then(ok => { delete drv.dataset.busy; if (ok) { drvShow(); refreshMeta(); } else drv.textContent = '☁ Drive'; });
     };
     const del = info.querySelector('[data-a=del]');
     del.onclick = async () => {
@@ -1238,7 +1320,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
       return false;
     }
   }
-  function openDriveSettings() { try { $('driveH').scrollIntoView({ behavior: 'smooth' }); } catch (e) {} }
+  function openDriveSettings() { $('settingsPane').classList.add('open'); try { $('driveH').scrollIntoView({ behavior: 'smooth' }); } catch (e) {} }
   $('sGcid').value = S.gcid || '';
   $('sGcid').addEventListener('change', () => { S.gcid = $('sGcid').value.trim(); saveSettings(); drive.client = null; drive.token = ''; driveState(S.gcid ? 'Có mã, bấm Kết nối' : 'Chưa kết nối'); });
   $('tDriveAuto').checked = !!S.driveAuto;
@@ -1294,23 +1376,34 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
     for (const m of list) { try { if (MediaRecorder.isTypeSupported(m)) return m; } catch (e) {} }
     return '';
   }
+  function aspect() { return S.aspect || (isMobile ? '9:16' : '16:9'); }
+  function vcon() {
+    const v = aspect() === '9:16' ? { width: { ideal: 1080 }, height: { ideal: 1920 }, aspectRatio: { ideal: 9 / 16 } } : { width: { ideal: 1920 }, height: { ideal: 1080 }, aspectRatio: { ideal: 16 / 9 } };
+    return Object.assign({ facingMode: { ideal: cam.facing }, frameRate: { ideal: 30 } }, v);
+  }
+  async function reopenStream(msg) {
+    if (!cam.stream || cam.rec) return false;
+    cam.stream.getTracks().forEach(t => t.stop()); cam.stream = null; stopMeter();
+    const ok = await camOn(); if (ok && msg) toast(msg); return ok;
+  }
   async function camOn(kind) {
-    if (kind) cam.kind = kind;
+    if (kind) { cam.kind = kind; S.lastKind = kind; saveSettings(); }
     if (cam.kind === 'audio') return audOn();
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { setStatus('Trình duyệt này không mở được camera. Trên điện thoại hãy dùng Chrome (Android) hoặc Safari (iPhone) với bản web riêng của CueCam.', 'warn'); return false; }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: cam.facing }, width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 } },
+        video: vcon(),
         audio: micConstraint()
       }).catch(err => {
         // the saved mic is gone (unplugged): fall back to the default one
         if (S.micId && err && (err.name === 'OverconstrainedError' || err.name === 'NotFoundError')) {
           S.micId = ''; saveSettings(); toast('Không thấy micro đã chọn, chuyển về micro mặc định');
-          return navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: cam.facing }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: micConstraint() });
+          return navigator.mediaDevices.getUserMedia({ video: vcon(), audio: micConstraint() });
         }
         throw err;
       });
       cam.stream = stream; camVideo.srcObject = stream; camVideo.classList.toggle('front', cam.facing === 'user');
+      camVideo.style.objectFit = (aspect() === '9:16') === (innerHeight >= innerWidth) ? 'cover' : 'contain';
       try { await camVideo.play(); } catch (e) {}
       $('prompter').classList.add('cam', 'live'); $('cOff').textContent = 'Tắt camera';
       camActive = true; applyLook();
@@ -1356,31 +1449,54 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
     if (P.open) { measure(); place(); }
   }
   function micConstraint() {
-    const a = { echoCancellation: true, noiseSuppression: true, autoGainControl: true };
+    // echo cancellation makes Android use its "call" mic path, which ignores USB/external mics: keep it off for recording
+    const a = { echoCancellation: false, noiseSuppression: (S.voiceFx || 'raw') !== 'studio', autoGainControl: true };
     if (S.micId) a.deviceId = { exact: S.micId };
     return a;
   }
+  let knownMics = null;
+  async function listMics() { try { return (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'audioinput'); } catch (e) { return []; } }
+  const micLabel = (d, i) => d.deviceId === 'default' ? 'Mặc định của máy' : d.deviceId === 'communications' ? 'Mic gọi điện' : (d.label || 'Micro ' + (i + 1));
   async function refreshMics() {
     const sel = $('cMic');
-    let devs = [];
-    try { devs = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'audioinput'); } catch (e) {}
+    const devs = await listMics();
+    if (!knownMics) knownMics = devs.map(d => d.deviceId);
     const track = cam.stream && cam.stream.getAudioTracks()[0];
     const using = track && track.getSettings ? track.getSettings().deviceId : '';
     sel.innerHTML = '';
-    if (!devs.length) { sel.innerHTML = '<option value="">Mặc định</option>'; return; }
-    devs.forEach((d, i) => {
-      const o = document.createElement('option'); o.value = d.deviceId;
-      o.textContent = d.deviceId === 'default' ? 'Mặc định của máy' : (d.label || 'Micro ' + (i + 1));
-      sel.appendChild(o);
-    });
-    sel.value = devs.some(d => d.deviceId === using) ? using : (S.micId || devs[0].deviceId);
+    if (!devs.length) sel.innerHTML = '<option value="">Mặc định</option>';
+    devs.forEach((d, i) => { const o = document.createElement('option'); o.value = d.deviceId; o.textContent = micLabel(d, i); sel.appendChild(o); });
+    if (devs.length) sel.value = devs.some(d => d.deviceId === using) ? using : (devs.some(d => d.deviceId === S.micId) ? S.micId : devs[0].deviceId);
+    let name = track ? (track.label || 'Mic') : 'Mic';
+    if (/^default( - )?/i.test(name)) name = name.replace(/^default( - )?/i, '') || 'Mic máy';
+    $('micName').textContent = name.length > 24 ? name.slice(0, 23) + '…' : name;
+    const real = devs.filter(d => d.deviceId !== 'default' && d.deviceId !== 'communications');
+    $('micHint').textContent = real.length <= 1
+      ? 'Trình duyệt chỉ thấy 1 micro. Mic cắm jack 3.5 mm thường tự thay mic máy mà không hiện tên riêng: nhìn vạch mức tiếng để kiểm tra. Mic USB-C: cắm vào trước, rồi bấm 🔄. Mic Bluetooth thường không dùng được trong trình duyệt.'
+      : 'Đang dùng: ' + name + '. Cắm mic mới thì app tự chuyển sang mic đó.';
+  }
+  async function rescanMics() {
+    await refreshMics();
+    if (cam.stream && !cam.rec) { await reopenStream(); }
+    toast('Đã tìm lại micro: ' + $('micName').textContent);
+  }
+  async function onDeviceChange() {
+    if (!cam.stream) { knownMics = null; return; }
+    const devs = await listMics(), ids = devs.map(d => d.deviceId);
+    const added = devs.filter(d => knownMics && !knownMics.includes(d.deviceId) && d.deviceId !== 'default' && d.deviceId !== 'communications');
+    const gone = S.micId && !ids.includes(S.micId);
+    knownMics = ids;
+    if (cam.rec) { toast('Có thay đổi micro trong lúc quay. Dừng quay rồi kiểm tra lại mic.'); return; }
+    if (added.length) { S.micId = added[0].deviceId; saveSettings(); await reopenStream('Đã chuyển sang mic vừa cắm: ' + micLabel(added[0], 0)); }
+    else if (gone) { S.micId = ''; saveSettings(); await reopenStream('Mic đã rút ra, chuyển về mic của máy'); }
+    else await reopenStream('Có thay đổi micro/tai nghe, đã kết nối lại mic'); // routing (e.g. 3.5 mm jack) may have changed
+    refreshMics();
   }
   async function switchMic(id) {
     if (cam.rec) { toast('Dừng quay rồi mới đổi micro được'); refreshMics(); return; }
     S.micId = id; saveSettings();
     if (!cam.stream) return;
-    cam.stream.getTracks().forEach(t => t.stop()); cam.stream = null; stopMeter();
-    if (await camOn()) toast('Đã chuyển micro: ' + ($('cMic').selectedOptions[0] || {}).textContent);
+    await reopenStream('Đã chuyển micro: ' + ($('cMic').selectedOptions[0] || {}).textContent);
   }
   let meter = null;
   function startMeter(stream) {
@@ -1402,7 +1518,10 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
   }
   function stopMeter() { if (!meter) return; cancelAnimationFrame(meter.raf); try { meter.ctx.close(); } catch (e) {} meter = null; $('micLevel').firstElementChild.style.width = '0'; }
   $('cMic').addEventListener('change', e => switchMic(e.target.value));
-  if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) navigator.mediaDevices.addEventListener('devicechange', () => { if (cam.stream) { refreshMics(); toast('Có thay đổi micro/tai nghe. Chọn lại micro nếu cần.'); } });
+  if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) navigator.mediaDevices.addEventListener('devicechange', () => { clearTimeout(onDeviceChange.t); onDeviceChange.t = setTimeout(onDeviceChange, 600); });
+  $('cMicScan').onclick = rescanMics;
+  $('cAspect').value = aspect();
+  $('cAspect').onchange = () => { if (cam.rec) { $('cAspect').value = aspect(); toast('Dừng quay rồi mới đổi khung được'); return; } S.aspect = $('cAspect').value; saveSettings(); reopenStream('Khung ' + (S.aspect === '9:16' ? 'dọc 9:16' : 'ngang 16:9')); };
   async function flipCam() {
     if (cam.rec) { toast('Dừng quay rồi mới đổi camera được'); return; }
     cam.facing = cam.facing === 'user' ? 'environment' : 'user';
@@ -1477,10 +1596,11 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
     r.ondataavailable = e => { if (e.data && e.data.size) cam.chunks.push(e.data); };
     r.onstop = () => {
       const fxUsed = fxRun ? fxRun.mode : 'raw'; fxClose(fxRun); fxRun = null;
-      const kind = cam.kind; const wpm = spd.manual ? spdAvg() : spdStop(true);
+      const kind = cam.kind; const wpm = spd.manual ? spdAvg() : spdStop(false);
+      const srt = buildSrt(cam.marks || []);
       let type = r.mimeType || mime || (kind === 'audio' ? 'audio/webm' : 'video/webm');
       let blob = new Blob(cam.chunks, { type });
-      const dur = (performance.now() - cam.t0) / 1000;
+      const dur = recElapsed() || (performance.now() - cam.t0) / 1000;
       const sc = cur();
       (async () => {
         let ext = /mp4/.test(type) ? (kind === 'audio' ? 'm4a' : 'mp4') : 'webm';
@@ -1491,21 +1611,108 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
         }
         const existing = (await allTakes()).filter(t => t.scriptId === sc.id && ((t.kind || 'video') === kind)).length;
         const n = existing + 1;
-        const rec = { id: 't' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), scriptId: sc.id, scriptTitle: sc.title, n, name: sc.title + (kind === 'audio' ? ' · Ghi âm ' : ' · Take ') + n, kind, created: Date.now(), dur, size: blob.size, type, ext, wpm, fx: fxUsed, star: false, blob };
+        const rec = { id: 't' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), scriptId: sc.id, scriptTitle: sc.title, n, name: sc.title + (kind === 'audio' ? ' · Ghi âm ' : ' · Take ') + n, kind, created: Date.now(), dur, size: blob.size, type, ext, wpm, fx: fxUsed, srt, saved: false, star: false, blob };
         const ok = await storeTake(rec);
         cam.takes.push(rec);
         if (S.driveAuto) { if (driveReady()) driveUpload(rec).then(() => renderTakes()); else toast('Bấm ☁ Lên Drive trong Các take để tải (cần đăng nhập Google)'); }
-        const what = kind === 'audio' ? 'bản ghi âm MP3 ' : 'Take ';
-        toast(ok ? 'Đã lưu ' + what + n + ' vào Thư viện' : 'Đã thu ' + what + n + ' (chỉ giữ tạm, hãy Lưu về máy)');
+        if (!ok) toast('Bộ nhớ trình duyệt đầy, take chỉ giữ tạm. Hãy Lưu vào máy ngay.');
+        showReview(rec); storageCheck();
         renderTakes(); refreshTakeCounts();
       })();
     };
     if (!spd.manual) spdStart(false);
-    r.start(1000); cam.t0 = performance.now();
+    sheet(false); stopRehearse(true);
+    r.start(1000); cam.t0 = performance.now(); cam.pausedMs = 0; cam.pauseAt = 0; cam.marks = []; cam.lastMark = -1;
     $('cRec').classList.add('on'); $('cRec').setAttribute('aria-label', 'Dừng quay'); $('recBadge').classList.add('on');
-    clearInterval(cam.timer); cam.timer = setInterval(() => { $('recBadge').textContent = fmt((performance.now() - cam.t0) / 1000); }, 250);
+    $('prompter').classList.add('recording'); $('prompter').classList.remove('paused');
+    clearInterval(cam.timer); cam.timer = setInterval(() => { $('recBadge').textContent = fmt(recElapsed()); }, 250);
     if (S.mode === 'auto') setPlay(true); else if (!voiceActive()) startVoice();
   }
+  function recElapsed() { if (!cam.t0) return 0; const now = cam.pauseAt || performance.now(); return Math.max(0, (now - cam.t0 - (cam.pausedMs || 0)) / 1000); }
+  function pauseRec() {
+    const r = cam.rec; if (!r || !r.pause) { toast('Máy này chưa hỗ trợ tạm dừng quay'); return; }
+    if (r.state === 'recording') {
+      r.pause(); cam.pauseAt = performance.now(); spd.on = false;
+      if (S.mode === 'auto') setPlay(false); else stopVoice();
+      $('prompter').classList.add('paused'); $('cPause').textContent = '▶'; $('cPause').setAttribute('aria-label', 'Quay tiếp');
+      setStatus('Đã tạm dừng. Bấm ▶ để quay tiếp vào cùng file, hoặc nút đỏ để kết thúc.', 'warn');
+    } else if (r.state === 'paused') {
+      cam.pausedMs += performance.now() - cam.pauseAt; cam.pauseAt = 0; r.resume(); spd.on = true;
+      if (S.mode === 'auto') setPlay(true); else if (!voiceActive()) startVoice();
+      $('prompter').classList.remove('paused'); $('cPause').textContent = '⏸'; $('cPause').setAttribute('aria-label', 'Tạm dừng quay');
+      setStatus('');
+    }
+  }
+  // subtitles: remember when each word reached the reading line during the take
+  function markTick() {
+    if (!cam.rec || cam.pauseAt || !P.tops || !P.tops.length) return;
+    const i = S.mode === 'voice' ? P.idx : wordAtPos(P.pos);
+    if (i > cam.lastMark) { cam.lastMark = i; cam.marks.push([recElapsed(), i]); }
+  }
+  function buildSrt(marks) {
+    if (!marks.length || !P.spans || !P.spans.length) return '';
+    const at = []; // time each word was reached
+    marks.forEach(([t, i], k) => { const from = k ? marks[k - 1][1] + 1 : 0; for (let w = from; w <= i; w++) at[w] = t; });
+    const tc = x => { const ms = Math.round(x * 1000), h = Math.floor(ms / 3600000), m = Math.floor(ms / 60000) % 60, sec = Math.floor(ms / 1000) % 60; return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0') + ':' + String(sec).padStart(2, '0') + ',' + String(ms % 1000).padStart(3, '0'); };
+    const cues = []; let curW = [];
+    const last = Math.min(at.length, P.spans.length);
+    for (let w = 0; w < last; w++) {
+      if (at[w] == null) continue;
+      const txt = P.spans[w].textContent; curW.push(w);
+      if (curW.length >= 8 || /[.!?…,;:]$/.test(txt) && curW.length >= 4 || /[.!?…]$/.test(txt)) { cues.push(curW); curW = []; }
+    }
+    if (curW.length) cues.push(curW);
+    return cues.map((c, k) => {
+      const st = at[c[0]], nx = k + 1 < cues.length ? at[cues[k + 1][0]] : st + 3;
+      const en = Math.min(st + 6, Math.max(nx, st + 0.3));
+      return (k + 1) + '\n' + tc(st) + ' --> ' + tc(en) + '\n' + c.map(w => P.spans[w].textContent).join(' ') + '\n';
+    }).join('\n');
+  }
+  async function storageCheck() {
+    try { const e = await navigator.storage.estimate(); if (e.quota && e.usage / e.quota > 0.8) toast('Bộ nhớ trình duyệt sắp đầy (' + Math.round(e.usage / e.quota * 100) + '%). Lưu các take ra máy hoặc Drive rồi xoá bớt trong Thư viện.'); } catch (e) {}
+  }
+  /* review screen right after a take */
+  let rvTake = null;
+  function showReview(t) {
+    rvTake = t; const box = $('rvMedia'); box.innerHTML = '';
+    const isAud = t.kind === 'audio';
+    const m = document.createElement(isAud ? 'audio' : 'video'); m.src = urlFor(t); m.controls = true; m.playsInline = true; m.preload = 'metadata'; box.appendChild(m);
+    $('rvTitle').textContent = t.name;
+    $('rvMeta').textContent = [fmt(t.dur), fmtSize(t.size), t.ext.toUpperCase(), t.wpm ? t.wpm + ' từ/phút' : '', t.fx && t.fx !== 'raw' ? 'Giọng ' + FXN[t.fx] : ''].filter(Boolean).join(' · ');
+    $('rvSave').textContent = '💾 Lưu vào máy'; $('rvSave').classList.remove('done');
+    $('rvDrive').textContent = t.driveLink ? '✓ Trên Drive' : '☁ Lên Drive'; $('rvDrive').classList.toggle('done', !!t.driveLink);
+    $('rvSrt').style.display = t.srt ? '' : 'none';
+    $('review').classList.add('on'); showHud();
+  }
+  function hideReview() { const m = $('rvMedia').querySelector('video,audio'); if (m) m.pause(); $('rvMedia').innerHTML = ''; $('review').classList.remove('on'); rvTake = null; }
+  $('rvClose').onclick = hideReview;
+  $('rvAgain').onclick = () => { hideReview(); $('hTop').click(); setStatus('Sẵn sàng. Bấm nút đỏ để quay lại từ đầu.'); };
+  $('rvSave').onclick = async () => { if (!rvTake) return; const ok = await saveTake(rvTake); if (ok) { $('rvSave').textContent = '✓ Đã lưu'; $('rvSave').classList.add('done'); } };
+  $('rvDrive').onclick = () => {
+    const t = rvTake; if (!t) return;
+    if (t.driveLink) { window.open(t.driveLink, '_blank', 'noopener'); return; }
+    const b = $('rvDrive'); if (b.dataset.busy) return; b.dataset.busy = '1';
+    driveUpload(t, p => { b.textContent = '☁ ' + p + '%'; }).then(ok => { delete b.dataset.busy; b.textContent = ok ? '✓ Trên Drive' : '☁ Lên Drive'; b.classList.toggle('done', ok); });
+  };
+  $('rvSrt').onclick = () => { if (rvTake && rvTake.srt) saveSrt(rvTake); };
+  function saveSrt(t) {
+    const blob = new Blob([t.srt], { type: 'application/x-subrip' }), name = fileName(t).replace(/\.[^.]+$/, '') + '.srt';
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  }
+  /* rehearse with the camera on, without recording */
+  function stopRehearse(silent) {
+    if (!cam.rehearse) return; cam.rehearse = false; $('hRehearse').setAttribute('aria-pressed', 'false');
+    if (S.mode === 'auto') setPlay(false); else if (!cam.rec) stopVoice();
+    const avg = spdStop(!silent); if (silent) $('spdBadge').classList.remove('on');
+  }
+  $('hRehearse').onclick = () => {
+    if (cam.rec) return;
+    if (cam.rehearse) { stopRehearse(false); return; }
+    cam.rehearse = true; $('hRehearse').setAttribute('aria-pressed', 'true'); sheet(false);
+    spdStart(true); $('hTop').click();
+    if (S.mode === 'auto') setPlay(true); else startVoice();
+    setStatus('Đang tập dượt, không ghi hình. Bấm 🎯 trong ⚙ Chỉnh để dừng và xem tốc độ.', 'live');
+  };
   async function toMp3(blob) {
     let pcm, rate;
     try {
@@ -1530,8 +1737,10 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
   }
   function stopRec() {
     if (!cam.rec) return;
+    if (cam.pauseAt) { cam.pausedMs += performance.now() - cam.pauseAt; cam.pauseAt = 0; }
     try { cam.rec.stop(); } catch (e) {}
     cam.rec = null; clearInterval(cam.timer);
+    $('prompter').classList.remove('recording', 'paused'); $('cPause').textContent = '⏸';
     $('cRec').classList.remove('on'); $('cRec').setAttribute('aria-label', 'Bắt đầu quay'); $('recBadge').classList.remove('on'); $('recBadge').textContent = '0:00';
     if (S.mode === 'auto') setPlay(false); else stopVoice();
     showHud();
@@ -1549,42 +1758,51 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
     const name = fileName(t);
     const file = new File([t.blob], name, { type: t.type });
     // phones: share sheet lets you "Save video" to Photos/Gallery
+    const done = () => { t.saved = true; patchTake(t.id, { saved: true }); return true; };
     if (navigator.canShare && navigator.share) {
-      try { if (navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: name }); return; } }
-      catch (e) { if (e && e.name === 'AbortError') return; }
+      try { if (navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: name }); return done(); } }
+      catch (e) { if (e && e.name === 'AbortError') return false; }
     }
-    if (downloads) { try { await downloads.save({ filename: name, data: t.blob }); return; } catch (e) { if (e && e.code === 'declined') return; } }
+    if (downloads) { try { await downloads.save({ filename: name, data: t.blob }); return done(); } catch (e) { if (e && e.code === 'declined') return false; } }
     const a = document.createElement('a'); a.href = urlFor(t); a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    return done();
   }
-  $('hCam').onclick = () => camOn('video');
-  $('hAud').onclick = () => camOn('audio');
-  $('hSpd').onclick = () => { spdManual(); showHud(); };
+  $('hCam').onclick = () => { sheet(false); camOn('video'); };
+  $('hAud').onclick = () => { sheet(false); camOn('audio'); };
+  $('hSpd').onclick = () => { sheet(false); spdManual(); showHud(); };
   $('spdClose').onclick = () => $('spdCard').classList.remove('on');
   $('spdUse').onclick = () => {
     const w = Math.max(60, Math.min(260, +$('spdUse').dataset.w || S.wpm)); S.wpm = w; saveSettings();
     const sel = $('wpm'); if (![...sel.options].some(o => +o.value === w)) { const o = document.createElement('option'); o.value = w; o.textContent = w; sel.appendChild(o); } sel.value = String(w);
     updateCount(); renderList(); markVoice(); $('spdCard').classList.remove('on'); toast('Nhịp chạy chữ: ' + w + ' từ/phút');
   };
-  $('hMore').onclick = () => { const on = !$('hud').classList.contains('more'); $('hud').classList.toggle('more', on); $('hMore').setAttribute('aria-expanded', on); showHud(); };
+  function sheet(on, focusId) {
+    $('sheet').classList.toggle('on', on); $('hMore').setAttribute('aria-expanded', String(on)); showHud();
+    if (on && focusId) setTimeout(() => { try { $(focusId).scrollIntoView({ block: 'center' }); } catch (e) {} }, 260);
+  }
+  $('hMore').onclick = () => sheet(!$('sheet').classList.contains('on'));
+  $('sheetClose').onclick = () => sheet(false);
+  $('micChip').onclick = () => { refreshMics(); sheet(true, 'cMic'); };
   $('cOff').onclick = () => { if (cam.rec) stopRec(); camOff(); setStatus(''); };
   $('cFlip').onclick = flipCam;
+  $('cPause').onclick = pauseRec;
   $('cRec').onclick = () => {
     if (cam.rec) { stopRec(); return; }
     // voice dictation must start inside the click, so start listening first, then count down
-    if (S.mode === 'voice') {
-      // on phones the recognizer cannot share the mic with the recording: switch to rhythm following
-      if (voiceActive() && isMobile && !rhythm.on) stopVoice();
-      if (!voiceActive()) startVoice();
-    }
+    hideReview(); stopRehearse(true);
+    // text must not move during the countdown: stop any listening, it restarts when recording starts
+    if (voiceActive()) stopVoice();
+    if (P.playing) setPlay(false);
+    if (S.mode === 'voice' && isIOS) startVoice(); // iPhone only lets recognition start inside the tap
     fxMonitor(false);
     cam.fxP = fxBuild(cam.stream).catch(() => null); // built inside the tap so audio may start
     if (S.count) countdown(startRec); else startRec();
   };
   $('cFx').value = S.voiceFx || 'raw';
-  $('cFx').onchange = () => { S.voiceFx = $('cFx').value; saveSettings(); toast('Giọng: ' + FXN[S.voiceFx]); if (fxMon) fxMonitor(true); };
+  $('cFx').onchange = async () => { S.voiceFx = $('cFx').value; saveSettings(); toast('Giọng: ' + FXN[S.voiceFx]); await reopenStream(); if (fxMon) fxMonitor(true); };
   $('cMon').onclick = () => fxMonitor(!fxMon);
   $('cMon').setAttribute('aria-pressed', 'false');
-  $('cTakes').onclick = () => { $('takes').classList.add('on'); renderTakes(); };
+  $('cTakes').onclick = () => { sheet(false); $('takes').classList.add('on'); renderTakes(); };
   $('takesClose').onclick = () => $('takes').classList.remove('on');
   window.addEventListener('beforeunload', e => { if (memTakes.length) { e.preventDefault(); e.returnValue = ''; } });
 
@@ -1592,18 +1810,23 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
   $('modeAuto').onclick = () => setMode('auto');
   $('modeVoice').onclick = () => setMode('voice');
   $('hPlay').onclick = () => togglePlay();
-  const speed = d => { if (rhythm.on) { S.wpm = Math.max(60, Math.min(260, S.wpm + d * 10)); saveSettings(); $('speedOut').textContent = 'Nhịp ' + S.wpm + ' từ/phút'; showHud(); return; } S.speed = Math.max(1, Math.min(30, S.speed + d)); saveSettings(); syncSettingsUI(); applyLook(); showHud(); };
+  const wpmBy = d => { S.wpm = Math.max(60, Math.min(260, S.wpm + d * 10)); saveSettings(); $('rOut').textContent = S.wpm; updateCount(); showHud(); };
+  const speed = d => { if (rhythm.on) return wpmBy(d); S.speed = Math.max(1, Math.min(30, S.speed + d)); saveSettings(); syncSettingsUI(); applyLook(); showHud(); };
   const fontBy = d => { const ratio = P.pos / (content.scrollHeight || 1); if (camActive) S.camFont = Math.max(14, Math.min(100, S.camFont + d / 2)); else S.font = Math.max(24, Math.min(140, S.font + d)); saveSettings(); syncSettingsUI(); applyLook(); P.pos = ratio * content.scrollHeight; P.target = S.mode === 'voice' ? (P.tops[P.idx] || 0) : P.pos; place(); showHud(); };
   $('hSlower').onclick = () => speed(-1);
   $('hFaster').onclick = () => speed(1);
+  $('rSlower').onclick = () => wpmBy(-1);
+  $('rFaster').onclick = () => wpmBy(1);
   $('hFontDn').onclick = () => fontBy(-4);
   $('hFontUp').onclick = () => fontBy(4);
   $('hMirror').onclick = () => { S.mirrorX = !S.mirrorX; saveSettings(); syncSettingsUI(); applyLook(); };
-  $('hArea').onclick = () => { const steps = [45, 55, 65, 75, 85, 100]; const i = steps.indexOf(S.camArea); S.camArea = steps[(i + 1) % steps.length]; saveSettings(); applyLook(); showHud(); toast('Chữ chiếm ' + S.camArea + '% màn hình từ trên xuống'); };
-  const focusBy = d => { S.line = Math.max(4, Math.min(60, S.line + d)); saveSettings(); syncSettingsUI(); applyLook(); showHud(); toast('Focus: ' + S.line + '% từ trên xuống'); };
+  const areaBy = d => { S.camArea = Math.max(35, Math.min(100, S.camArea + d)); saveSettings(); syncSettingsUI(); applyLook(); };
+  $('aDn').onclick = () => areaBy(-10);
+  $('aUp').onclick = () => areaBy(10);
+  const focusBy = d => { S.line = Math.max(4, Math.min(60, S.line + d)); saveSettings(); syncSettingsUI(); applyLook(); showHud(); };
   $('hFocusUp').onclick = () => focusBy(-3);
   $('hFocusDn').onclick = () => focusBy(3);
-  $('hTop').onclick = () => { P.pos = 0; P.target = 0; P.elapsed = 0; if (S.mode === 'voice') { P.idx = 0; resetHighlights(); setIdx(0, true); } place(); };
+  $('hTop').onclick = () => { P.pos = P.target = (P.tops && P.tops[0]) || 0; P.elapsed = 0; if (S.mode === 'voice') { P.idx = 0; resetHighlights(); setIdx(0, true); } place(); };
   $('hFull').onclick = () => { const el = $('prompter'); if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); else if (el.requestFullscreen) el.requestFullscreen().catch(() => toast('Không bật được toàn màn hình ở đây')); };
   $('hExit').onclick = closePrompter;
   $('btnStart').onclick = () => { openPrompter(); if (S.mode === 'voice' && !voiceActive()) startVoice(); };
@@ -1653,9 +1876,22 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
     else toast(v);
   });
 
+  $('btnMenu').onclick = e => { e.stopPropagation(); const on = !$('topMenu').classList.contains('on'); $('topMenu').classList.toggle('on', on); $('btnMenu').setAttribute('aria-expanded', String(on)); };
+  document.addEventListener('click', e => { if (!e.target.closest('.menuwrap')) { $('topMenu').classList.remove('on'); $('btnMenu').setAttribute('aria-expanded', 'false'); } });
+  const openSettings = on => { $('settingsPane').classList.toggle('open', on); $('stoggle').setAttribute('aria-expanded', String(on)); };
+  $('stoggle').onclick = () => openSettings(!$('settingsPane').classList.contains('open'));
+  $('btnSettings').onclick = () => { $('topMenu').classList.remove('on'); openSettings(true); $('settingsPane').scrollIntoView({ behavior: 'smooth' }); };
+  $('tAutoCam').checked = !!S.autoCam;
+  $('tAutoCam').addEventListener('change', () => { S.autoCam = $('tAutoCam').checked; saveSettings(); toast(S.autoCam ? 'Lần sau mở app sẽ vào thẳng màn quay với kịch bản gần nhất' : 'Đã tắt vào thẳng màn quay'); });
+
   /* ---------------- Boot ---------------- */
   setTimeout(() => refreshTakeCounts().catch(() => {}), 0);
   applyLook(); loadEditor(); renderList(); syncSettingsUI();
+  if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+  { // quick record: ?quay=video|audio (home-screen shortcut) or the "open straight into recording" setting
+    const q = new URLSearchParams(location.search).get('quay') || (S.autoCam ? (S.lastKind || 'video') : '');
+    if (q === 'video' || q === 'audio') setTimeout(() => { openPrompter(); camOn(q); renderTakes(); }, 50);
+  }
   if (window.claude && typeof window.claude.use === 'function') {
     window.claude.use('downloads').then(d => { downloads = d; }).catch(() => {});
     window.claude.use('dictation').then(d => {
