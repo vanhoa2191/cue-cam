@@ -490,8 +490,9 @@ input[type=range] { width: 100%; accent-color: var(--cue); }
       <p class="hint" id="micHint"></p>
     </section>
     <section class="liveonly"><h5>Quay</h5>
+      <p class="hint camonly" id="camInfo" style="font-variant-numeric:tabular-nums"></p>
       <div class="srow camonly" id="zoomRow" style="display:none"><label for="cZoom">Thu phóng<small>kéo sang trái để thấy rộng hơn</small></label><span class="stp"><input type="range" id="cZoom" style="width:130px;accent-color:var(--cue)"><b id="zoomOut"></b></span></div>
-      <div class="srow camonly"><label for="cAspect">Khung hình</label><span class="stp"><select id="cAspect"><option value="9:16">Dọc 9:16 (TikTok, Reels)</option><option value="16:9">Ngang 16:9 (YouTube)</option></select></span></div>
+      <div class="srow camonly"><label for="cAspect">Khung hình</label><span class="stp"><select id="cAspect"><option value="9:16">Dọc 9:16 (TikTok, Reels)</option><option value="3:4">Dọc 3:4 (rộng nhất, không cắt)</option><option value="16:9">Ngang 16:9 (YouTube)</option></select></span></div>
       <div class="bgrid"><button class="btn small" id="hRehearse" type="button" aria-pressed="false">🎯 Tập dượt (không ghi)</button><button class="btn small" id="cTakes" type="button">Các take (0)</button><button class="btn small" id="cOff" type="button">Tắt camera</button></div>
     </section>
     <section><h5>Khác</h5>
@@ -572,12 +573,12 @@ input[type=range] { width: 100%; accent-color: var(--cue); }
 </div>
 <div class="toast" id="toast"></div>
 
-<script src="lib/beauty.js?v=10"></script>
+<script src="lib/beauty.js?v=11"></script>
 <script>
 (() => {
   'use strict';
   const $ = id => document.getElementById(id);
-  const APP_VERSION = '19.11 · 10'; // shown in ⚙ and Liên hệ so Hoà can check the phone has the latest build
+  const APP_VERSION = '19.11 · 11'; // shown in ⚙ and Liên hệ so Hoà can check the phone has the latest build
   const store = {
     get(k, d) { try { const v = localStorage.getItem('cuecam.' + k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
     set(k, v) { try { localStorage.setItem('cuecam.' + k, JSON.stringify(v)); return true; } catch (e) { return false; } }
@@ -1445,7 +1446,11 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
   }
   function aspect() { return S.aspect || (isMobile ? '9:16' : '16:9'); }
   function vcon() {
-    const v = aspect() === '9:16' ? { width: { ideal: 1080 }, height: { ideal: 1920 }, aspectRatio: { ideal: 9 / 16 } } : { width: { ideal: 1920 }, height: { ideal: 1080 }, aspectRatio: { ideal: 16 / 9 } };
+    // Phones: ask for the full 4:3 sensor picture and never let Chrome crop-and-scale it (asking for 9:16 made
+    // Android cut a narrow strip out of a landscape frame = looked zoomed in). We crop to the chosen frame ourselves.
+    const v = isMobile ? { width: { ideal: 1920 }, height: { ideal: 1440 }, resizeMode: 'none' }
+      : aspect() === '16:9' ? { width: { ideal: 1920 }, height: { ideal: 1080 }, aspectRatio: { ideal: 16 / 9 } }
+      : { width: { ideal: 1440 }, height: { ideal: 1080 } };
     const o = Object.assign({ facingMode: { ideal: cam.facing }, frameRate: { ideal: 30 } }, v);
     try { if (isMobile && navigator.mediaDevices.getSupportedConstraints().zoom) o.zoom = true; } catch (e) {} // lets us zoom out to the widest view the browser allows
     return o;
@@ -1592,13 +1597,20 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
   if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) navigator.mediaDevices.addEventListener('devicechange', () => { clearTimeout(onDeviceChange.t); onDeviceChange.t = setTimeout(onDeviceChange, 600); });
   $('cMicScan').onclick = rescanMics;
   $('cAspect').value = aspect();
-  $('cAspect').onchange = () => { if (cam.rec) { $('cAspect').value = aspect(); toast('Dừng quay rồi mới đổi khung được'); return; } S.aspect = $('cAspect').value; saveSettings(); reopenStream('Khung ' + (S.aspect === '9:16' ? 'dọc 9:16' : 'ngang 16:9')); };
+  $('cAspect').onchange = () => { if (cam.rec) { $('cAspect').value = aspect(); toast('Dừng quay rồi mới đổi khung được'); return; } S.aspect = $('cAspect').value; saveSettings(); reopenStream('Khung ' + ({ '9:16': 'dọc 9:16', '3:4': 'dọc 3:4', '16:9': 'ngang 16:9' }[S.aspect])); };
   // the phone turned (or the camera changed size): re-check the crop to the chosen frame
-  camVideo.addEventListener('resize', () => { if (!cam.stream) return; fxApply(); orientHint(); });
+  camVideo.addEventListener('resize', () => { if (!cam.stream) return; fxApply(); orientHint(); setTimeout(camInfo, 500); });
   function orientHint() {
     const w = camVideo.videoWidth, h = camVideo.videoHeight; if (!w || cam.rec) return;
-    const want = aspect() === '9:16' ? 'p' : 'l', got = h >= w ? 'p' : 'l';
+    const want = aspect() === '16:9' ? 'l' : 'p', got = h >= w ? 'p' : 'l';
     if (want !== got) toast(want === 'l' ? 'Khung ngang 16:9: hãy xoay ngang điện thoại để hình rộng và nét. Đang cắt tạm từ hình dọc.' : 'Khung dọc 9:16: hãy cầm dọc điện thoại để hình rộng và nét. Đang cắt tạm từ hình ngang.');
+  }
+  // what the camera really sends and what gets recorded, so a problem on a phone can be reported with numbers
+  function camInfo() {
+    const t = cam.stream && cam.stream.getVideoTracks()[0]; if (!t) { $('camInfo').textContent = ''; return; }
+    let st = {}; try { st = t.getSettings(); } catch (e) {}
+    const i = FXB ? FXB.info() : {}, w = camVideo.videoWidth || st.width, h = camVideo.videoHeight || st.height;
+    $('camInfo').textContent = 'Camera gửi ' + w + '×' + h + (i.running && i.w ? ' · video ra ' + i.w + '×' + i.h : ' · video ra ' + w + '×' + h) + (st.zoom ? ' · thu phóng ' + (+st.zoom).toFixed(1) + '×' : '') + (st.resizeMode ? ' · ' + st.resizeMode : '');
   }
   function setupZoom() {
     const row = $('zoomRow'), t = cam.stream && cam.stream.getVideoTracks()[0];
@@ -1640,7 +1652,8 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
     if (!FXB) return;
     try {
     FXB.setQuality(S.fxLite ? 1280 : 1920);
-    FXB.setAspect(cam.kind === 'video' ? (aspect() === '9:16' ? 9 / 16 : 16 / 9) : null);
+    FXB.setAspect(cam.kind === 'video' ? ({ '9:16': 9 / 16, '16:9': 16 / 9, '3:4': 3 / 4 }[aspect()] || null) : null);
+    camInfo();
     FXB.set(S.fx);
     $('cBeauty').classList.toggle('act', fxIsOn());
     } catch (err) { console.error('[beauty]', err); }
@@ -1988,6 +2001,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
     $('sheet').classList.toggle('on', on); $('hMore').setAttribute('aria-expanded', String(on)); showHud();
     if (on) $('fxPanel').classList.remove('on');
     if (typeof fxOpenClass === 'function') fxOpenClass();
+    if (on && cam.stream) camInfo();
     if (on && focusId) setTimeout(() => { try { $(focusId).scrollIntoView({ block: 'center' }); } catch (e) {} }, 260);
   }
   $('hMore').onclick = () => sheet(!$('sheet').classList.contains('on'));
