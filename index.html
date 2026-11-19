@@ -128,7 +128,7 @@ input[type=range] { width: 100%; accent-color: var(--cue); }
 .kbd kbd { font-family: var(--font-ui); background: var(--panel); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 1px 6px; color: var(--text); font-size: 12px; justify-self: start; }
 
 /* ---------- Prompter stage ---------- */
-#prompter { position: fixed; inset: 0; background: #000; z-index: 50; display: none; overflow: hidden; touch-action: none; user-select: none; }
+#prompter { position: fixed; inset: 0; background: #000; z-index: 50; display: none; overflow: hidden; overflow: clip; touch-action: none; user-select: none; }
 #prompter.on { display: block; }
 #stage { position: absolute; inset: 0; }
 #scroller { position: absolute; left: 0; right: 0; top: 0; will-change: transform; }
@@ -245,9 +245,16 @@ input[type=range] { width: 100%; accent-color: var(--cue); }
 #fxCanvas.front { transform: scaleX(-1); }
 #prompter.cam #fxCanvas.on { display: block; }
 #cBeauty.act { border-color: var(--cue); color: var(--cue); }
+/* hide the script to look at the camera picture: by the 👁 button, and automatically while ✨ or ⚙ is open on the camera */
+#prompter.notext #stage, #prompter.notext #camShade, #prompter.cam.fxopen #stage, #prompter.cam.fxopen #camShade { visibility: hidden; }
+#hText { position: absolute; top: calc(10px + env(safe-area-inset-top, 0px)); right: calc(10px + env(safe-area-inset-right, 0px)); z-index: 6; width: 44px; height: 44px; border-radius: 50%; border: 1px solid rgba(255,255,255,.25); background: rgba(0,0,0,.45); color: #fff; font-size: 18px; display: none; align-items: center; justify-content: center; cursor: pointer; }
+#prompter.cam #hText { display: inline-flex; }
+#prompter.recording #hText { display: none; }
+#prompter.notext #hText { background: var(--cue); color: #1b1307; border-color: var(--cue); }
+#prompter.cam #sheet { max-height: 46%; background: rgba(17,17,17,.94); }
 #prompter.recording #cBeauty { display: none !important; }
 @media (max-width: 440px) { #prompter.cam .micchip #micName { display: none; } #prompter.cam .micchip::before { content: '🎙'; } #prompter.cam .micchip { flex: 0 0 auto; min-width: 0; } }
-#fxPanel { position: absolute; left: 0; right: 0; bottom: 0; max-height: 48%; overflow-y: auto; z-index: 7; background: rgba(14,14,14,.94); border-top: 1px solid #333; border-radius: 16px 16px 0 0; padding: 0 max(14px, env(safe-area-inset-right, 0px)) calc(12px + env(safe-area-inset-bottom, 0px)) max(14px, env(safe-area-inset-left, 0px)); color: #eee; transform: translateY(105%); transition: transform .25s; }
+#fxPanel { position: absolute; left: 0; right: 0; bottom: 0; max-height: 40%; overflow-y: auto; z-index: 7; background: rgba(14,14,14,.94); border-top: 1px solid #333; border-radius: 16px 16px 0 0; padding: 0 max(14px, env(safe-area-inset-right, 0px)) calc(12px + env(safe-area-inset-bottom, 0px)) max(14px, env(safe-area-inset-left, 0px)); color: #eee; transform: translateY(105%); transition: transform .25s; }
 #fxPanel.on { transform: none; }
 @media (min-width: 700px) { #fxPanel { left: 50%; right: auto; width: 560px; transform: translate(-50%, 105%); } #fxPanel.on { transform: translate(-50%, 0); } }
 #fxPanel .fxhead { position: sticky; top: 0; z-index: 1; background: rgba(14,14,14,.98); display: flex; gap: 8px; align-items: center; justify-content: space-between; padding: 10px 0 8px; }
@@ -446,6 +453,7 @@ input[type=range] { width: 100%; accent-color: var(--cue); }
 <div id="prompter" role="dialog" aria-label="Màn hình đọc">
   <video id="camVideo" playsinline muted autoplay></video>
   <canvas id="fxCanvas"></canvas>
+  <button id="hText" type="button" aria-pressed="false" aria-label="Ẩn chữ để xem camera" title="Ẩn/hiện chữ">👁</button>
   <div id="camShade"></div>
   <div id="spdCard" role="dialog" aria-label="Kết quả đo tốc độ nói"><h4>⏱ Tốc độ nói</h4><p id="spdSum"></p><p class="meta" id="spdNote"></p><div class="acts"><button class="btn small primary" id="spdUse" type="button">Dùng làm nhịp chạy chữ</button><button class="btn small" id="spdClose" type="button">Đóng</button></div></div>
   <div id="stage">
@@ -561,12 +569,12 @@ input[type=range] { width: 100%; accent-color: var(--cue); }
 </div>
 <div class="toast" id="toast"></div>
 
-<script src="lib/beauty.js?v=8"></script>
+<script src="lib/beauty.js?v=9"></script>
 <script>
 (() => {
   'use strict';
   const $ = id => document.getElementById(id);
-  const APP_VERSION = '19.11 · 8'; // shown in ⚙ and Liên hệ so Hoà can check the phone has the latest build
+  const APP_VERSION = '19.11 · 9'; // shown in ⚙ and Liên hệ so Hoà can check the phone has the latest build
   const store = {
     get(k, d) { try { const v = localStorage.getItem('cuecam.' + k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
     set(k, v) { try { localStorage.setItem('cuecam.' + k, JSON.stringify(v)); return true; } catch (e) { return false; } }
@@ -1504,7 +1512,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
     stopMeter();
     if (cam.stream) cam.stream.getTracks().forEach(t => t.stop());
     cam.stream = null; camVideo.srcObject = null; fxPanel(false); if (window.CueBeauty) CueBeauty.stop();
-    $('prompter').classList.remove('cam', 'live');
+    $('prompter').classList.remove('cam', 'live', 'notext', 'fxopen');
     camActive = false; applyLook();
     if (P.open) { measure(); place(); }
   }
@@ -1621,7 +1629,9 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
   const fxDB = { open() { return new Promise((ok, no) => { const r = indexedDB.open('cuecam-fx', 1); r.onupgradeneeded = () => r.result.createObjectStore('kv'); r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error); }); },
     async get(k) { try { const db = await this.open(); return await new Promise(ok => { const q = db.transaction('kv').objectStore('kv').get(k); q.onsuccess = () => ok(q.result); q.onerror = () => ok(null); }); } catch (e) { return null; } },
     async set(k, v) { try { const db = await this.open(); await new Promise(ok => { const t = db.transaction('kv', 'readwrite'); t.objectStore('kv').put(v, k); t.oncomplete = ok; t.onerror = ok; }); } catch (e) {} } };
-  function fxPanel(on) { $('fxPanel').classList.toggle('on', on); if (on) { sheet(false); fxSyncUI(); } showHud(); }
+  function fxPanel(on) { $('fxPanel').classList.toggle('on', on); if (on) { sheet(false); fxSyncUI(); } fxOpenClass(); showHud(); }
+  function fxOpenClass() { $('prompter').classList.toggle('fxopen', $('fxPanel').classList.contains('on') || $('sheet').classList.contains('on')); }
+  $('hText').onclick = () => { const on = !$('prompter').classList.contains('notext'); $('prompter').classList.toggle('notext', on); $('hText').setAttribute('aria-pressed', String(on)); $('hText').textContent = on ? 'Aa' : '👁'; $('hText').setAttribute('aria-label', on ? 'Hiện lại chữ' : 'Ẩn chữ để xem camera'); showHud(); };
   function fxIsOn() { const f = S.fx; return f.lip > 0 || f.smooth > 0 || f.bright > 0 || f.tone !== 0 || f.light > 0 || f.filter !== 'none' || f.bg !== 'none'; }
   function fxApply() {
     if (!FXB) return;
@@ -1799,6 +1809,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
     };
     if (!spd.manual) spdStart(false);
     sheet(false); fxPanel(false); stopRehearse(true);
+    if ($('prompter').classList.contains('notext')) $('hText').click(); // the script comes back when recording starts
     r.start(1000); cam.t0 = performance.now(); cam.pausedMs = 0; cam.pauseAt = 0; cam.marks = []; cam.lastMark = -1;
     $('cRec').classList.add('on'); $('cRec').setAttribute('aria-label', 'Dừng quay'); $('recBadge').classList.add('on');
     $('prompter').classList.add('recording'); $('prompter').classList.remove('paused');
@@ -1956,6 +1967,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
   function sheet(on, focusId) {
     $('sheet').classList.toggle('on', on); $('hMore').setAttribute('aria-expanded', String(on)); showHud();
     if (on) $('fxPanel').classList.remove('on');
+    if (typeof fxOpenClass === 'function') fxOpenClass();
     if (on && focusId) setTimeout(() => { try { $(focusId).scrollIntoView({ block: 'center' }); } catch (e) {} }, 260);
   }
   $('hMore').onclick = () => sheet(!$('sheet').classList.contains('on'));
