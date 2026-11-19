@@ -501,8 +501,11 @@ input[type=range] { width: 100%; accent-color: var(--cue); }
   <div id="fxPanel" aria-label="Làm đẹp, bộ lọc và phông nền">
     <div class="fxhead"><div class="seg fxtabs" role="group" aria-label="Nhóm hiệu ứng"><button type="button" data-t="beauty" aria-pressed="true">Làm đẹp</button><button type="button" data-t="filter" aria-pressed="false">Bộ lọc</button><button type="button" data-t="bg" aria-pressed="false">Phông nền</button></div><button class="btn small" id="fxClose" type="button">Xong</button></div>
     <div class="fxbody on" data-t="beauty">
+      <button class="btn small primary" id="fxAuto" type="button" style="align-self:flex-start">✨ Tự động (xem mặt rồi chỉnh vừa phải)</button>
       <label class="fxs"><span>Mịn da</span><input type="range" id="fxSmooth" min="0" max="100" step="5"><b></b></label>
       <label class="fxs"><span>Sáng da</span><input type="range" id="fxBright" min="0" max="100" step="5"><b></b></label>
+      <label class="fxs"><span>Quầng thâm</span><input type="range" id="fxDark" min="0" max="100" step="5" aria-label="Che quầng thâm mắt"><b></b></label>
+      <label class="fxs"><span>Mắt sáng</span><input type="range" id="fxEyes" min="0" max="100" step="5"><b></b></label>
       <label class="fxs"><span>Tông màu</span><input type="range" id="fxTone" min="-50" max="50" step="5" aria-label="Tông màu, trái lạnh, phải ấm"><b></b></label>
       <label class="fxs"><span>Đèn studio</span><input type="range" id="fxLight" min="0" max="100" step="5"><b></b></label>
       <label class="fxs"><span>Son môi</span><input type="range" id="fxLip" min="0" max="100" step="5"><b></b></label>
@@ -569,12 +572,12 @@ input[type=range] { width: 100%; accent-color: var(--cue); }
 </div>
 <div class="toast" id="toast"></div>
 
-<script src="lib/beauty.js?v=9"></script>
+<script src="lib/beauty.js?v=10"></script>
 <script>
 (() => {
   'use strict';
   const $ = id => document.getElementById(id);
-  const APP_VERSION = '19.11 · 9'; // shown in ⚙ and Liên hệ so Hoà can check the phone has the latest build
+  const APP_VERSION = '19.11 · 10'; // shown in ⚙ and Liên hệ so Hoà can check the phone has the latest build
   const store = {
     get(k, d) { try { const v = localStorage.getItem('cuecam.' + k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
     set(k, v) { try { localStorage.setItem('cuecam.' + k, JSON.stringify(v)); return true; } catch (e) { return false; } }
@@ -1632,7 +1635,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
   function fxPanel(on) { $('fxPanel').classList.toggle('on', on); if (on) { sheet(false); fxSyncUI(); } fxOpenClass(); showHud(); }
   function fxOpenClass() { $('prompter').classList.toggle('fxopen', $('fxPanel').classList.contains('on') || $('sheet').classList.contains('on')); }
   $('hText').onclick = () => { const on = !$('prompter').classList.contains('notext'); $('prompter').classList.toggle('notext', on); $('hText').setAttribute('aria-pressed', String(on)); $('hText').textContent = on ? 'Aa' : '👁'; $('hText').setAttribute('aria-label', on ? 'Hiện lại chữ' : 'Ẩn chữ để xem camera'); showHud(); };
-  function fxIsOn() { const f = S.fx; return f.lip > 0 || f.smooth > 0 || f.bright > 0 || f.tone !== 0 || f.light > 0 || f.filter !== 'none' || f.bg !== 'none'; }
+  function fxIsOn() { const f = S.fx; return f.dark > 0 || f.eyes > 0 || f.lip > 0 || f.smooth > 0 || f.bright > 0 || f.tone !== 0 || f.light > 0 || f.filter !== 'none' || f.bg !== 'none'; }
   function fxApply() {
     if (!FXB) return;
     try {
@@ -1646,7 +1649,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
   function fxSyncUI() {
     const f = S.fx;
     const row = (id, val, txt) => { const el = $(id); el.value = val; el.nextElementSibling.textContent = txt; };
-    row('fxSmooth', f.smooth, f.smooth || 'Tắt'); row('fxLip', f.lip, f.lip || 'Tắt');
+    row('fxSmooth', f.smooth, f.smooth || 'Tắt'); row('fxDark', f.dark, f.dark || 'Tắt'); row('fxEyes', f.eyes, f.eyes || 'Tắt'); row('fxLip', f.lip, f.lip || 'Tắt');
     $('fxLipCols').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.id === f.lipColor))); row('fxBright', f.bright, f.bright || 'Tắt'); row('fxLight', f.light, f.light || 'Tắt');
     row('fxTone', f.tone, f.tone === 0 ? 'Gốc' : f.tone < 0 ? 'Lạnh' : 'Ấm');
     row('fxFStr', f.fstr, f.fstr); row('fxBlur', f.blur, f.blur); row('fxEdge', f.edge, f.edge < 35 ? 'Sắc' : f.edge > 65 ? 'Mềm' : 'Vừa');
@@ -1693,10 +1696,27 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
         S.fx.bg = 'user'; fxSave(); toast('Đã đặt ảnh làm phông nền. Chạm lại ô này để đổi ảnh khác.');
       } catch (err) { toast('Không mở được ảnh này'); }
     };
-    [['fxLip', 'lip'], ['fxSmooth', 'smooth'], ['fxBright', 'bright'], ['fxTone', 'tone'], ['fxLight', 'light'], ['fxFStr', 'fstr'], ['fxBlur', 'blur'], ['fxEdge', 'edge']].forEach(([id, k]) => {
+    [['fxDark', 'dark'], ['fxEyes', 'eyes'], ['fxLip', 'lip'], ['fxSmooth', 'smooth'], ['fxBright', 'bright'], ['fxTone', 'tone'], ['fxLight', 'light'], ['fxFStr', 'fstr'], ['fxBlur', 'blur'], ['fxEdge', 'edge']].forEach(([id, k]) => {
       $(id).addEventListener('input', e => { S.fx[k] = +e.target.value; fxApply(); fxSyncUI(); });
       $(id).addEventListener('change', () => saveSettings());
     });
+    $('fxAuto').onclick = async () => {
+      if (!cam.stream) return;
+      const b = $('fxAuto'); b.disabled = true; b.textContent = 'Đang xem khuôn mặt…';
+      // gentle start so face tracking runs, then read the picture and set natural values
+      S.fx = Object.assign({}, S.fx, { smooth: 40, bright: 20, dark: 30, eyes: 15, faceOnly: true }); fxSave();
+      await new Promise(r => setTimeout(r, 1800));
+      const a = FXB.analyze() || {}, fl = a.faceLuma != null ? a.faceLuma : (a.sceneLuma != null ? a.sceneLuma : 0.5);
+      const cl = (v, lo, hi) => Math.max(lo, Math.min(hi, Math.round(v / 5) * 5));
+      const set = { smooth: 45, eyes: 20,
+        bright: fl < 0.3 ? 45 : fl < 0.42 ? 35 : fl < 0.55 ? 20 : 10,
+        light: fl < 0.38 ? 40 : fl < 0.5 ? 25 : 0,
+        tone: a.warmth != null ? cl((0.22 - a.warmth) * 100, -15, 15) : 0,
+        dark: a.under != null && a.cheek ? (a.under / a.cheek < 0.97 ? cl((1 - a.under / a.cheek) * 500, 20, 70) : 15) : 30 };
+      S.fx = Object.assign({}, S.fx, set); fxSave();
+      b.disabled = false; b.textContent = '✨ Tự động (xem mặt rồi chỉnh vừa phải)';
+      toast(a.face ? 'Đã chỉnh tự động theo khuôn mặt. Bạn vẫn kéo lại được từng thanh.' : 'Không thấy rõ khuôn mặt, đã đặt mức vừa phải. Nhìn thẳng camera rồi bấm lại để chỉnh chuẩn hơn.');
+    };
     $('fxFace').onchange = e => { S.fx.faceOnly = e.target.checked; fxSave(); };
     $('fxLite').onchange = e => { if (cam.rec) { e.target.checked = !!S.fxLite; toast('Dừng quay rồi mới đổi được'); return; } S.fxLite = e.target.checked; fxSave(); };
     $('fxReset').onclick = () => { const keep = { fstr: S.fx.fstr, blur: S.fx.blur, edge: S.fx.edge, faceOnly: S.fx.faceOnly, lipColor: S.fx.lipColor }; S.fx = Object.assign({}, FXB.DEF, keep); fxSave(); toast('Đã tắt hết hiệu ứng'); };
