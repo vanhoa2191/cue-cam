@@ -12,3 +12,5 @@ Teleprompter tiếng Việt chạy trên web, dùng cho cá nhân.
 Mở: https://vanhoa2191.github.io/cue-cam/
 
 Toàn bộ app nằm trong `index.html` (cộng thư viện trong `lib/`), không cần build.
+
+- Ghi âm MP3 dùng [lamejs](https://github.com/zhuker/lamejs) (LGPL-3.0), file gốc ở `lib/lame.min.js`.
