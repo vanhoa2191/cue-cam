@@ -560,7 +560,7 @@ input[type=range] { width: 100%; accent-color: var(--cue); }
 </div>
 <div class="toast" id="toast"></div>
 
-<script src="lib/beauty.js"></script>
+<script src="lib/beauty.js?v=4"></script>
 <script>
 (() => {
   'use strict';
@@ -604,9 +604,8 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
   const FS = () => camActive ? S.camFont : S.font; // font size on the prompter stage
   if (!S.v3) { if (S.line === 30) S.line = 12; S.v3 = 1; }
   const saveSettings = () => store.set('settings', S);
-  S.fx = Object.assign({}, window.CueBeauty ? CueBeauty.DEF : {}, S.fx || {});
-  if (S.fxLite == null) S.fxLite = isLowEnd();
-  function isLowEnd() { return (navigator.hardwareConcurrency || 8) <= 4 || (navigator.deviceMemory || 8) <= 3; }
+  try { S.fx = Object.assign({}, window.CueBeauty ? CueBeauty.DEF : {}, (S.fx && typeof S.fx === 'object') ? S.fx : {}); } catch (e) { S.fx = {}; }
+  if (S.fxLite == null) S.fxLite = (navigator.hardwareConcurrency || 8) <= 4 || (navigator.deviceMemory || 8) <= 3;
 
   const cur = () => scripts.find(s => s.id === currentId);
   const saveScripts = () => {
@@ -1588,7 +1587,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
   }
   /* ---------- Beauty, colour filters, studio light, background (lib/beauty.js, WebGL + AI in a worker) ---------- */
   const fxCanvas = $('fxCanvas');
-  const FXB = window.CueBeauty;
+  let FXB = window.CueBeauty;
   const fxDB = { open() { return new Promise((ok, no) => { const r = indexedDB.open('cuecam-fx', 1); r.onupgradeneeded = () => r.result.createObjectStore('kv'); r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error); }); },
     async get(k) { try { const db = await this.open(); return await new Promise(ok => { const q = db.transaction('kv').objectStore('kv').get(k); q.onsuccess = () => ok(q.result); q.onerror = () => ok(null); }); } catch (e) { return null; } },
     async set(k, v) { try { const db = await this.open(); await new Promise(ok => { const t = db.transaction('kv', 'readwrite'); t.objectStore('kv').put(v, k); t.oncomplete = ok; t.onerror = ok; }); } catch (e) {} } };
@@ -1596,9 +1595,11 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
   function fxIsOn() { const f = S.fx; return f.lip > 0 || f.smooth > 0 || f.bright > 0 || f.tone !== 0 || f.light > 0 || f.filter !== 'none' || f.bg !== 'none'; }
   function fxApply() {
     if (!FXB) return;
+    try {
     FXB.setQuality(S.fxLite ? 1280 : 1920);
     FXB.set(S.fx);
     $('cBeauty').classList.toggle('act', fxIsOn());
+    } catch (err) { console.error('[beauty]', err); }
   }
   function fxSave() { saveSettings(); fxApply(); fxSyncUI(); }
   function fxSyncUI() {
@@ -1619,7 +1620,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
     const i = document.createElement('i'); if (bgCss) i.style.background = bgCss; if (icon) i.textContent = icon;
     const t = document.createElement('span'); t.textContent = name; b.append(i, t); return b;
   }
-  if (FXB) {
+  if (FXB) try {
     FXB.attach(camVideo, fxCanvas, (msg, on) => { $('fxStat').textContent = msg || (on ? '' : 'Chưa bật hiệu ứng nào'); });
     FXB.FILTERS.forEach(f => $('fxFilters').appendChild(fxChip(f.id, f.name, f.sw)));
     FXB.LIPS.forEach(l => { const b = document.createElement('button'); b.type = 'button'; b.dataset.id = l.id; b.style.background = l.c; b.title = l.name; b.setAttribute('aria-label', 'Son ' + l.name); $('fxLipCols').appendChild(b); });
@@ -1666,7 +1667,8 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
     $('cBeauty').onclick = () => fxPanel(!$('fxPanel').classList.contains('on'));
     $('fxClose').onclick = () => fxPanel(false);
     fxSyncUI();
-  } else $('cBeauty').style.display = 'none';
+  } catch (err) { console.error('[beauty init]', err); FXB = null; }
+  if (!FXB) $('cBeauty').style.display = 'none';
   // the stream the recorder gets: the effects canvas when a look is on, so the saved video has it
   function recSource() {
     if (cam.kind !== 'video' || !FXB || !FXB.active()) return cam.stream;
