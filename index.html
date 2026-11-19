@@ -241,6 +241,29 @@ input[type=range] { width: 100%; accent-color: var(--cue); }
 #camVideo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: none; background: #000; }
 #camVideo.front { transform: scaleX(-1); }
 #prompter.cam #camVideo { display: block; }
+#fxCanvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: none; background: #000; }
+#fxCanvas.front { transform: scaleX(-1); }
+#prompter.cam #fxCanvas.on { display: block; }
+#cBeauty.act { border-color: var(--cue); color: var(--cue); }
+#prompter.recording #cBeauty { display: none !important; }
+@media (max-width: 440px) { #prompter.cam .micchip #micName { display: none; } #prompter.cam .micchip::before { content: '🎙'; } #prompter.cam .micchip { flex: 0 0 auto; min-width: 0; } }
+#fxPanel { position: absolute; left: 0; right: 0; bottom: 0; max-height: 48%; overflow-y: auto; z-index: 7; background: rgba(14,14,14,.94); border-top: 1px solid #333; border-radius: 16px 16px 0 0; padding: 0 max(14px, env(safe-area-inset-right, 0px)) calc(12px + env(safe-area-inset-bottom, 0px)) max(14px, env(safe-area-inset-left, 0px)); color: #eee; transform: translateY(105%); transition: transform .25s; }
+#fxPanel.on { transform: none; }
+@media (min-width: 700px) { #fxPanel { left: 50%; right: auto; width: 560px; transform: translate(-50%, 105%); } #fxPanel.on { transform: translate(-50%, 0); } }
+#fxPanel .fxhead { position: sticky; top: 0; z-index: 1; background: rgba(14,14,14,.98); display: flex; gap: 8px; align-items: center; justify-content: space-between; padding: 10px 0 8px; }
+#fxPanel .fxtabs { flex: 1; display: flex; } #fxPanel .fxtabs button { flex: 1; padding: 9px 4px; font-size: 13.5px; }
+#fxPanel .btn { background: #1c1c1c; border-color: #333; color: #eee; }
+.fxbody { display: none; flex-direction: column; gap: 10px; padding: 4px 0 8px; } .fxbody.on { display: flex; }
+.fxs { display: grid; grid-template-columns: 6.2em 1fr 2.6em; align-items: center; gap: 10px; font-size: 14px; }
+.fxs input[type=range] { width: 100%; accent-color: var(--cue); height: 28px; }
+.fxs b { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; color: #ccc; }
+.fxchk { display: flex; gap: 10px; align-items: flex-start; font-size: 13.5px; color: #ccc; } .fxchk input { width: 20px; height: 20px; flex: none; accent-color: var(--cue); }
+.fxchips { display: flex; gap: 8px; overflow-x: auto; padding: 2px 0 6px; scrollbar-width: none; } .fxchips::-webkit-scrollbar { display: none; }
+.fxchip { flex: none; width: 68px; display: flex; flex-direction: column; align-items: center; gap: 4px; background: none; border: 0; color: #bbb; font-size: 11.5px; cursor: pointer; padding: 0; text-align: center; line-height: 1.2; }
+.fxchip i { width: 56px; height: 56px; border-radius: 12px; border: 2px solid #333; background-size: cover; background-position: center; display: flex; align-items: center; justify-content: center; font-style: normal; font-size: 22px; color: #fff; }
+.fxchip[aria-pressed=true] { color: var(--cue); font-weight: 600; } .fxchip[aria-pressed=true] i { border-color: var(--cue); }
+.fxfoot { display: flex; justify-content: space-between; align-items: center; gap: 8px; border-top: 1px solid #222; padding-top: 8px; }
+.fxfoot .hint { flex: 1; }
 #prompter.cam { background: #000; }
 #camShade { position: absolute; left: 0; right: 0; top: 0; height: 56%; display: none; pointer-events: none; background: linear-gradient(to bottom, rgba(0,0,0,.45) 0%, rgba(0,0,0,.2) 70%, rgba(0,0,0,0) 100%); }
 #prompter.cam #camShade { display: block; }
@@ -419,6 +442,7 @@ input[type=range] { width: 100%; accent-color: var(--cue); }
 
 <div id="prompter" role="dialog" aria-label="Màn hình đọc">
   <video id="camVideo" playsinline muted autoplay></video>
+  <canvas id="fxCanvas"></canvas>
   <div id="camShade"></div>
   <div id="spdCard" role="dialog" aria-label="Kết quả đo tốc độ nói"><h4>⏱ Tốc độ nói</h4><p id="spdSum"></p><p class="meta" id="spdNote"></p><div class="acts"><button class="btn small primary" id="spdUse" type="button">Dùng làm nhịp chạy chữ</button><button class="btn small" id="spdClose" type="button">Đóng</button></div></div>
   <div id="stage">
@@ -462,6 +486,27 @@ input[type=range] { width: 100%; accent-color: var(--cue); }
       <div class="bgrid"><button class="btn small" id="hSpd" type="button" aria-pressed="false">⏱ Đo tốc độ nói</button><button class="btn small" id="hMirror" type="button">⇋ Lật gương</button><button class="btn small" id="hTop" type="button">⤒ Về đầu</button><button class="btn small" id="hFull" type="button">⛶ Toàn màn hình</button><button class="btn small idleonly" id="hCam" type="button">🎥 Bật camera</button><button class="btn small idleonly" id="hAud" type="button">🎙 Ghi âm</button></div>
     </section>
   </div>
+  <div id="fxPanel" aria-label="Làm đẹp, bộ lọc và phông nền">
+    <div class="fxhead"><div class="seg fxtabs" role="group" aria-label="Nhóm hiệu ứng"><button type="button" data-t="beauty" aria-pressed="true">Làm đẹp</button><button type="button" data-t="filter" aria-pressed="false">Bộ lọc</button><button type="button" data-t="bg" aria-pressed="false">Phông nền</button></div><button class="btn small" id="fxClose" type="button">Xong</button></div>
+    <div class="fxbody on" data-t="beauty">
+      <label class="fxs"><span>Mịn da</span><input type="range" id="fxSmooth" min="0" max="100" step="5"><b></b></label>
+      <label class="fxs"><span>Sáng da</span><input type="range" id="fxBright" min="0" max="100" step="5"><b></b></label>
+      <label class="fxs"><span>Tông màu</span><input type="range" id="fxTone" min="-50" max="50" step="5" aria-label="Tông màu, trái lạnh, phải ấm"><b></b></label>
+      <label class="fxs"><span>Đèn studio</span><input type="range" id="fxLight" min="0" max="100" step="5"><b></b></label>
+      <label class="fxchk"><input type="checkbox" id="fxFace"><span>Chỉ làm mịn da mặt, giữ nét mắt và môi (AI nhận diện khuôn mặt)</span></label>
+    </div>
+    <div class="fxbody" data-t="filter">
+      <div class="fxchips" id="fxFilters"></div>
+      <label class="fxs"><span>Độ đậm</span><input type="range" id="fxFStr" min="10" max="100" step="5"><b></b></label>
+    </div>
+    <div class="fxbody" data-t="bg">
+      <div class="fxchips" id="fxBgs"></div>
+      <label class="fxs" id="fxBlurRow"><span>Độ mờ</span><input type="range" id="fxBlur" min="0" max="100" step="5"><b></b></label>
+      <label class="fxs"><span>Viền</span><input type="range" id="fxEdge" min="0" max="100" step="5" aria-label="Viền, trái sắc, phải mềm"><b></b></label>
+      <input type="file" id="fxBgFile" accept="image/*" hidden>
+    </div>
+    <div class="fxfoot"><span class="hint" id="fxStat"></span><label class="fxchk" style="align-items:center"><span>Nhẹ máy</span><input type="checkbox" id="fxLite"></label><button class="btn small" id="fxReset" type="button">Tắt hết</button></div>
+  </div>
   <div id="hud">
     <div id="progress"><i></i></div>
     <div class="hudinfo"><span id="recBadge">0:00</span><span id="followChip"></span><span id="status"></span><span id="spdBadge"><b id="spdVal">–</b> từ/phút <em id="spdTag"></em></span></div>
@@ -470,6 +515,7 @@ input[type=range] { width: 100%; accent-color: var(--cue); }
       <div class="hl"><button class="ib big" id="hExit" type="button" aria-label="Thoát">✕</button><button class="micchip liveonly" id="micChip" type="button" aria-label="Micro đang dùng, chạm để đổi"><span id="micName">Mic</span><span id="micLevel" aria-hidden="true"><i></i></span></button><span id="time">0:00</span></div>
       <div class="hc">
         <button class="ib big recon" id="cPause" type="button" aria-label="Tạm dừng quay">⏸</button>
+        <button class="ib big camonly" id="cBeauty" type="button" aria-label="Làm đẹp, bộ lọc, phông nền">✨</button>
         <button class="recbtn liveonly" id="cRec" type="button" aria-label="Bắt đầu quay"></button>
         <button class="btn primary" id="hPlay" type="button">▶ Chạy</button>
       </div>
@@ -509,6 +555,7 @@ input[type=range] { width: 100%; accent-color: var(--cue); }
 </div>
 <div class="toast" id="toast"></div>
 
+<script src="lib/beauty.js"></script>
 <script>
 (() => {
   'use strict';
@@ -552,6 +599,9 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
   const FS = () => camActive ? S.camFont : S.font; // font size on the prompter stage
   if (!S.v3) { if (S.line === 30) S.line = 12; S.v3 = 1; }
   const saveSettings = () => store.set('settings', S);
+  S.fx = Object.assign({}, window.CueBeauty ? CueBeauty.DEF : {}, S.fx || {});
+  if (S.fxLite == null) S.fxLite = isLowEnd();
+  function isLowEnd() { return (navigator.hardwareConcurrency || 8) <= 4 || (navigator.deviceMemory || 8) <= 3; }
 
   const cur = () => scripts.find(s => s.id === currentId);
   const saveScripts = () => {
@@ -1404,9 +1454,10 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
       });
       cam.stream = stream; camVideo.srcObject = stream; camVideo.classList.toggle('front', cam.facing === 'user');
       camVideo.style.objectFit = (aspect() === '9:16') === (innerHeight >= innerWidth) ? 'cover' : 'contain';
+      fxCanvas.classList.toggle('front', cam.facing === 'user'); fxCanvas.style.objectFit = camVideo.style.objectFit;
       try { await camVideo.play(); } catch (e) {}
       $('prompter').classList.add('cam', 'live'); $('cOff').textContent = 'Tắt camera';
-      camActive = true; applyLook();
+      camActive = true; applyLook(); fxApply();
       refreshMics(); startMeter(stream);
       measure(); place(); showHud();
       setStatus((cam.facing === 'user' ? 'Camera trước, đặt chữ sát ống kính.' : 'Camera sau.') + (S.mode === 'voice' ? ' Bấm nút đỏ: đếm 3 giây rồi vừa quay vừa chạy chữ theo giọng.' : ' Bấm nút đỏ: đếm 3 giây rồi vừa quay vừa chạy chữ.'));
@@ -1443,7 +1494,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
     fxMonitor(false);
     stopMeter();
     if (cam.stream) cam.stream.getTracks().forEach(t => t.stop());
-    cam.stream = null; camVideo.srcObject = null;
+    cam.stream = null; camVideo.srcObject = null; fxPanel(false); if (window.CueBeauty) CueBeauty.stop();
     $('prompter').classList.remove('cam', 'live');
     camActive = false; applyLook();
     if (P.open) { measure(); place(); }
@@ -1530,6 +1581,90 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
     const ok = await camOn('video');
     if (!ok) { cam.facing = cam.facing === 'user' ? 'environment' : 'user'; camOn(); }
   }
+  /* ---------- Beauty, colour filters, studio light, background (lib/beauty.js, WebGL + AI in a worker) ---------- */
+  const fxCanvas = $('fxCanvas');
+  const FXB = window.CueBeauty;
+  const fxDB = { open() { return new Promise((ok, no) => { const r = indexedDB.open('cuecam-fx', 1); r.onupgradeneeded = () => r.result.createObjectStore('kv'); r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error); }); },
+    async get(k) { try { const db = await this.open(); return await new Promise(ok => { const q = db.transaction('kv').objectStore('kv').get(k); q.onsuccess = () => ok(q.result); q.onerror = () => ok(null); }); } catch (e) { return null; } },
+    async set(k, v) { try { const db = await this.open(); await new Promise(ok => { const t = db.transaction('kv', 'readwrite'); t.objectStore('kv').put(v, k); t.oncomplete = ok; t.onerror = ok; }); } catch (e) {} } };
+  function fxPanel(on) { $('fxPanel').classList.toggle('on', on); if (on) { sheet(false); fxSyncUI(); } showHud(); }
+  function fxIsOn() { const f = S.fx; return f.smooth > 0 || f.bright > 0 || f.tone !== 0 || f.light > 0 || f.filter !== 'none' || f.bg !== 'none'; }
+  function fxApply() {
+    if (!FXB) return;
+    FXB.setQuality(S.fxLite ? 1280 : 1920);
+    FXB.set(S.fx);
+    $('cBeauty').classList.toggle('act', fxIsOn());
+  }
+  function fxSave() { saveSettings(); fxApply(); fxSyncUI(); }
+  function fxSyncUI() {
+    const f = S.fx;
+    const row = (id, val, txt) => { const el = $(id); el.value = val; el.nextElementSibling.textContent = txt; };
+    row('fxSmooth', f.smooth, f.smooth || 'Tắt'); row('fxBright', f.bright, f.bright || 'Tắt'); row('fxLight', f.light, f.light || 'Tắt');
+    row('fxTone', f.tone, f.tone === 0 ? 'Gốc' : f.tone < 0 ? 'Lạnh' : 'Ấm');
+    row('fxFStr', f.fstr, f.fstr); row('fxBlur', f.blur, f.blur); row('fxEdge', f.edge, f.edge < 35 ? 'Sắc' : f.edge > 65 ? 'Mềm' : 'Vừa');
+    $('fxFace').checked = !!f.faceOnly; $('fxLite').checked = !!S.fxLite;
+    $('fxFilters').querySelectorAll('.fxchip').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.id === f.filter)));
+    $('fxBgs').querySelectorAll('.fxchip').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.id === f.bg)));
+    $('fxBlurRow').style.display = f.bg === 'blur' ? '' : 'none';
+    $('fxEdge').closest('.fxs').style.display = f.bg === 'none' ? 'none' : '';
+  }
+  function fxChip(id, name, bgCss, icon) {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'fxchip'; b.dataset.id = id;
+    const i = document.createElement('i'); if (bgCss) i.style.background = bgCss; if (icon) i.textContent = icon;
+    const t = document.createElement('span'); t.textContent = name; b.append(i, t); return b;
+  }
+  if (FXB) {
+    FXB.attach(camVideo, fxCanvas, (msg, on) => { $('fxStat').textContent = msg || (on ? '' : 'Chưa bật hiệu ứng nào'); });
+    FXB.FILTERS.forEach(f => $('fxFilters').appendChild(fxChip(f.id, f.name, f.sw)));
+    $('fxBgs').appendChild(fxChip('none', 'Không', '#222', '⊘'));
+    $('fxBgs').appendChild(fxChip('blur', 'Làm mờ', 'radial-gradient(circle at 50% 40%,#9aa,#345)', '◌'));
+    FXB.BGS.forEach(b => { let url = ''; try { url = FXB.drawPreset(b.id, 72, 128).toDataURL('image/jpeg', 0.8); } catch (e) {} $('fxBgs').appendChild(fxChip(b.id, b.name, url ? 'url(' + url + ') center/cover' : '#333')); });
+    const up = fxChip('user', 'Ảnh của bạn', '#2a2a2a', '＋'); $('fxBgs').appendChild(up);
+    fxDB.get('bgImage').then(async blob => {
+      if (!blob) return;
+      try { const bmp = await createImageBitmap(blob); FXB.setUserImage(bmp); const u = URL.createObjectURL(blob); up.firstChild.style.background = 'url(' + u + ') center/cover'; up.firstChild.textContent = ''; fxApply(); } catch (e) {}
+    });
+    $('fxFilters').addEventListener('click', e => { const b = e.target.closest('.fxchip'); if (!b) return; S.fx.filter = b.dataset.id; fxSave(); });
+    $('fxBgs').addEventListener('click', e => {
+      const b = e.target.closest('.fxchip'); if (!b) return;
+      if (b.dataset.id === 'user' && (S.fx.bg === 'user' || !up.firstChild.style.backgroundImage.includes('url'))) { $('fxBgFile').click(); return; }
+      S.fx.bg = b.dataset.id; fxSave();
+    });
+    $('fxBgFile').onchange = async e => {
+      const file = e.target.files && e.target.files[0]; e.target.value = ''; if (!file) return;
+      try {
+        // keep a resized copy (max 1920 px) so it loads fast next time
+        const src = await createImageBitmap(file), k = Math.min(1, 1920 / Math.max(src.width, src.height));
+        const c = document.createElement('canvas'); c.width = Math.round(src.width * k); c.height = Math.round(src.height * k);
+        c.getContext('2d').drawImage(src, 0, 0, c.width, c.height);
+        const blob = await new Promise(ok => c.toBlob(ok, 'image/jpeg', 0.9));
+        const bmp = await createImageBitmap(blob); FXB.setUserImage(bmp); fxDB.set('bgImage', blob);
+        up.firstChild.style.background = 'url(' + URL.createObjectURL(blob) + ') center/cover'; up.firstChild.textContent = '';
+        S.fx.bg = 'user'; fxSave(); toast('Đã đặt ảnh làm phông nền. Chạm lại ô này để đổi ảnh khác.');
+      } catch (err) { toast('Không mở được ảnh này'); }
+    };
+    [['fxSmooth', 'smooth'], ['fxBright', 'bright'], ['fxTone', 'tone'], ['fxLight', 'light'], ['fxFStr', 'fstr'], ['fxBlur', 'blur'], ['fxEdge', 'edge']].forEach(([id, k]) => {
+      $(id).addEventListener('input', e => { S.fx[k] = +e.target.value; fxApply(); fxSyncUI(); });
+      $(id).addEventListener('change', () => saveSettings());
+    });
+    $('fxFace').onchange = e => { S.fx.faceOnly = e.target.checked; fxSave(); };
+    $('fxLite').onchange = e => { if (cam.rec) { e.target.checked = !!S.fxLite; toast('Dừng quay rồi mới đổi được'); return; } S.fxLite = e.target.checked; fxSave(); };
+    $('fxReset').onclick = () => { const keep = { fstr: S.fx.fstr, blur: S.fx.blur, edge: S.fx.edge, faceOnly: S.fx.faceOnly }; S.fx = Object.assign({}, FXB.DEF, keep); fxSave(); toast('Đã tắt hết hiệu ứng'); };
+    $('fxPanel').querySelector('.fxtabs').addEventListener('click', e => {
+      const b = e.target.closest('button'); if (!b) return;
+      $('fxPanel').querySelectorAll('.fxtabs button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+      $('fxPanel').querySelectorAll('.fxbody').forEach(x => x.classList.toggle('on', x.dataset.t === b.dataset.t));
+    });
+    $('cBeauty').onclick = () => fxPanel(!$('fxPanel').classList.contains('on'));
+    $('fxClose').onclick = () => fxPanel(false);
+    fxSyncUI();
+  } else $('cBeauty').style.display = 'none';
+  // the stream the recorder gets: the effects canvas when a look is on, so the saved video has it
+  function recSource() {
+    if (cam.kind !== 'video' || !FXB || !FXB.active()) return cam.stream;
+    const vt = FXB.recordTrack(); if (!vt) return cam.stream;
+    return new MediaStream([vt, ...cam.stream.getAudioTracks()]);
+  }
   /* ---------- Voice enhancement (Web Audio, runs on the device) ----------
      clear: high-pass, de-mud, presence boost, compressor, limiter
      studio: same plus RNNoise noise removal (lib/ns, MIT/BSD) */
@@ -1582,8 +1717,8 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
   function startRec() {
     if (!cam.stream) return;
     const fxP = cam.fxP; cam.fxP = null;
-    if (fxP) { fxP.then(run => { if (cam.rec || !cam.stream) { fxClose(run); return; } fxRun = run; startRec2(run && run.stream || cam.stream); }); return; }
-    startRec2(cam.stream);
+    if (fxP) { fxP.then(run => { if (cam.rec || !cam.stream) { fxClose(run); return; } fxRun = run; startRec2(run && run.stream || cam.recSrc || cam.stream); }); return; }
+    startRec2(cam.recSrc || cam.stream);
   }
   function startRec2(recStream) {
     const mime = pickMime();
@@ -1595,6 +1730,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
     cam.chunks = []; cam.rec = r;
     r.ondataavailable = e => { if (e.data && e.data.size) cam.chunks.push(e.data); };
     r.onstop = () => {
+      if (window.CueBeauty) CueBeauty.unlock(); cam.recSrc = null;
       const fxUsed = fxRun ? fxRun.mode : 'raw'; fxClose(fxRun); fxRun = null;
       const kind = cam.kind; const wpm = spd.manual ? spdAvg() : spdStop(false);
       const srt = buildSrt(cam.marks || []);
@@ -1621,7 +1757,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
       })();
     };
     if (!spd.manual) spdStart(false);
-    sheet(false); stopRehearse(true);
+    sheet(false); fxPanel(false); stopRehearse(true);
     r.start(1000); cam.t0 = performance.now(); cam.pausedMs = 0; cam.pauseAt = 0; cam.marks = []; cam.lastMark = -1;
     $('cRec').classList.add('on'); $('cRec').setAttribute('aria-label', 'Dừng quay'); $('recBadge').classList.add('on');
     $('prompter').classList.add('recording'); $('prompter').classList.remove('paused');
@@ -1778,6 +1914,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
   };
   function sheet(on, focusId) {
     $('sheet').classList.toggle('on', on); $('hMore').setAttribute('aria-expanded', String(on)); showHud();
+    if (on) $('fxPanel').classList.remove('on');
     if (on && focusId) setTimeout(() => { try { $(focusId).scrollIntoView({ block: 'center' }); } catch (e) {} }, 260);
   }
   $('hMore').onclick = () => sheet(!$('sheet').classList.contains('on'));
@@ -1795,7 +1932,8 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
     if (P.playing) setPlay(false);
     if (S.mode === 'voice' && isIOS) startVoice(); // iPhone only lets recognition start inside the tap
     fxMonitor(false);
-    cam.fxP = fxBuild(cam.stream).catch(() => null); // built inside the tap so audio may start
+    cam.recSrc = recSource();
+    cam.fxP = fxBuild(cam.recSrc).catch(() => null); // built inside the tap so audio may start
     if (S.count) countdown(startRec); else startRec();
   };
   $('cFx').value = S.voiceFx || 'raw';
