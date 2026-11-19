@@ -573,12 +573,12 @@ input[type=range] { width: 100%; accent-color: var(--cue); }
 </div>
 <div class="toast" id="toast"></div>
 
-<script src="lib/beauty.js?v=13"></script>
+<script src="lib/beauty.js?v=14"></script>
 <script>
 (() => {
   'use strict';
   const $ = id => document.getElementById(id);
-  const APP_VERSION = '19.11 · 13'; // shown in ⚙ and Liên hệ so Hoà can check the phone has the latest build
+  const APP_VERSION = '19.11 · 14'; // shown in ⚙ and Liên hệ so Hoà can check the phone has the latest build
   const store = {
     get(k, d) { try { const v = localStorage.getItem('cuecam.' + k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
     set(k, v) { try { localStorage.setItem('cuecam.' + k, JSON.stringify(v)); return true; } catch (e) { return false; } }
