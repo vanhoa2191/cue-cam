@@ -747,39 +747,75 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
   function voiceFail(code) {
     voiceOn = false; markVoice();
     const m = {
-      none: 'Trình duyệt này chưa hỗ trợ nghe giọng nói. Hãy mở CueCam bằng Chrome hoặc Edge trên máy tính.',
+      none: isIOS ? 'Trình duyệt này trên iPhone chưa hỗ trợ nghe giọng nói. Hãy mở CueCam bằng Safari.' : isMobile ? 'Trình duyệt này chưa hỗ trợ nghe giọng nói. Trên Android hãy dùng Google Chrome.' : 'Trình duyệt này chưa hỗ trợ nghe giọng nói. Hãy mở CueCam bằng Chrome hoặc Edge.',
       not_granted: 'Micro đang bị chặn. Cho phép micro cho trang này rồi bấm lại.',
       dismissed: 'Bạn chưa trả lời câu hỏi cấp quyền micro. Bấm lại để thử.',
       unavailable: 'Nhận giọng tiếng Việt chưa có ở đây. Hãy mở bản offline (file .html) bằng Chrome.',
       rate_limited: 'Dịch vụ nghe đang bận, thử lại sau ít giây.',
-      network: 'Mất kết nối tới dịch vụ nhận giọng nói. Kiểm tra mạng rồi thử lại.'
+      network: 'Nhận giọng nói cần mạng. Kiểm tra wifi hoặc 4G rồi bấm "Bắt đầu nghe" lại.',
+      ios_siri: 'iPhone chỉ nghe được khi bật Siri và Đọc chính tả: vào Cài đặt > Cài đặt chung > Bàn phím > Bật Đọc chính tả, và Cài đặt > Siri. Nhớ mở CueCam bằng Safari (không mở từ biểu tượng ngoài màn hình chính).',
+      audio_capture: 'Micro đang bị chiếm (có thể bởi camera đang quay hoặc app khác). Thử tắt camera rồi bấm "Bắt đầu nghe", hoặc cập nhật Chrome lên bản mới nhất.',
+      lang: 'Máy này chưa có gói nhận giọng tiếng Việt. Trên Android: cài app Google, vào Cài đặt Google > Giọng nói > Ngôn ngữ, thêm Tiếng Việt.',
+      start: 'Không khởi động được bộ nghe. Tải lại trang rồi thử lại.'
     };
-    setStatus(m[code] || 'Không bật được micro (' + (code || 'lỗi') + ').', 'warn');
+    const msg = m[code] || 'Không bật được micro (' + (code || 'lỗi') + ').';
+    setStatus(msg, 'warn'); showHud(); toast(msg);
   }
   function markVoice() {
     $('hPlay').textContent = voiceOn ? '■ Ngừng nghe' : '🎙 Bắt đầu nghe';
     $('hPlay').classList.toggle('listening', voiceOn);
     if (!voiceOn) showHud();
   }
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.platform || ''));
+  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.platform || ''));
+  let recTimer = 0, recWatch = 0;
   function startWebSpeech() {
     const R = window.SpeechRecognition || window.webkitSpeechRecognition;
-    try {
-      rec = new R(); rec.lang = 'vi-VN'; rec.continuous = true; rec.interimResults = true;
-      rec.onresult = e => {
+    voiceOn = true; markVoice(); setStatus('Đang bật micro để nghe…');
+    const run = () => {
+      if (!voiceOn) return;
+      let r;
+      try { r = new R(); } catch (e) { voiceFail('none'); return; }
+      rec = r;
+      r.lang = 'vi-VN';
+      // phones handle short sessions far better than one long "continuous" session
+      r.continuous = !isMobile; r.interimResults = true; r.maxAlternatives = 1;
+      r.onstart = () => { clearTimeout(recWatch); if (rec === r) setStatus('Đang nghe tiếng Việt. Cứ đọc tự nhiên, chữ sẽ chạy theo.', 'live'); };
+      r.onresult = e => {
         let interim = '';
         for (let k = e.resultIndex; k < e.results.length; k++) {
-          const r = e.results[k];
-          if (r.isFinal) onFinal(r[0].transcript); else interim += r[0].transcript + ' ';
+          const res = e.results[k];
+          if (res.isFinal) onFinal(res[0].transcript); else interim += res[0].transcript + ' ';
         }
         if (interim) onPartial(interim);
       };
-      rec.onerror = e => { if (e.error === 'no-speech' || e.error === 'aborted') return; const c = e.error === 'not-allowed' || e.error === 'service-not-allowed' ? 'not_granted' : e.error; rec = null; voiceFail(c); };
-      rec.onend = () => { if (voiceOn && rec) { try { rec.start(); } catch (e) {} } };
-      rec.start(); voiceOn = true; markVoice(); setStatus('Đang nghe (Chrome, tiếng Việt). Cứ đọc tự nhiên, chữ sẽ chạy theo.', 'live');
-    } catch (e) { voiceFail('none'); }
+      r.onerror = e => {
+        if (rec !== r) return;
+        const err = e.error;
+        if (err === 'no-speech' || err === 'aborted') return; // onend restarts
+        rec = null;
+        if (err === 'not-allowed') voiceFail('not_granted');
+        else if (err === 'service-not-allowed') voiceFail(isIOS ? 'ios_siri' : 'not_granted');
+        else if (err === 'audio-capture') voiceFail('audio_capture');
+        else if (err === 'language-not-supported') voiceFail('lang');
+        else voiceFail(err);
+      };
+      r.onend = () => {
+        if (rec !== r || !voiceOn) return;
+        clearTimeout(recTimer); recTimer = setTimeout(run, 120); // keep listening
+      };
+      // Newer Chrome can listen on the same mic track the camera is recording (and the mic you picked)
+      const track = cam.stream && cam.stream.getAudioTracks()[0];
+      try { if (track && track.readyState === 'live') r.start(track); else r.start(); }
+      catch (e) { try { r.start(); } catch (e2) { rec = null; voiceFail('start'); return; } }
+    };
+    clearTimeout(recWatch);
+    recWatch = setTimeout(() => { if (voiceOn && !/Đang nghe/.test($('status').textContent)) setStatus('Micro chưa bật lên được để nghe. Thử tắt camera rồi bấm "Bắt đầu nghe" lại, hoặc kiểm tra quyền micro của trình duyệt.', 'warn'); }, 5000);
+    run();
   }
   function stopVoice() {
-    if (rec) { const r = rec; rec = null; try { r.stop(); } catch (e) {} }
+    clearTimeout(recTimer); clearTimeout(recWatch);
+    if (rec) { const r = rec; rec = null; try { r.abort ? r.abort() : r.stop(); } catch (e) {} }
     if (dict && dict.active()) dict.stop().catch(() => {});
     if (voiceOn) { voiceOn = false; markVoice(); setStatus('Đã ngừng nghe. Bấm "Bắt đầu nghe" để tiếp tục từ chỗ đang dừng.'); }
   }
@@ -798,7 +834,9 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
     } else { $('hPlay').classList.remove('listening'); setPlay(P.playing); setStatus('Space để chạy hoặc dừng. Cuộn chuột hoặc vuốt để chỉnh vị trí.'); }
   }
   function voiceHint() {
-    if (hasWebSpeech && !inFrame) return 'Bấm "Bắt đầu nghe" (hoặc Space) rồi đọc. Chữ tự chạy theo giọng bạn, ngừng nói thì chữ dừng.';
+    if (hasWebSpeech && !inFrame) return 'Bấm "Bắt đầu nghe" rồi đọc. Chữ tự chạy theo giọng bạn, ngừng nói thì chữ dừng. Cần có mạng.';
+    if (!hasWebSpeech && isIOS) return 'Trình duyệt này trên iPhone chưa hỗ trợ nghe giọng nói. Hãy mở CueCam bằng Safari.';
+    if (!hasWebSpeech && isMobile) return 'Trình duyệt này chưa hỗ trợ nghe giọng nói. Trên Android hãy dùng Google Chrome.';
     if (dict) return 'Bấm "Bắt đầu nghe" (hoặc Space) rồi đọc. Lần đầu trang sẽ xin quyền dùng micro.';
     if (hasWebSpeech) return 'Bấm "Bắt đầu nghe" (hoặc Space) rồi đọc. Nếu micro bị chặn, hãy mở bản offline bằng Chrome.';
     return 'Trình duyệt này chưa hỗ trợ nghe giọng nói. Hãy dùng Chrome hoặc Edge trên máy tính.';
