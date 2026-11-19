@@ -56,6 +56,8 @@ header.top {
 .btn.primary { background: var(--cue); border-color: var(--cue); color: #1b1307; font-weight: 600; }
 .btn.primary:hover { filter: brightness(1.06); }
 .btn.ghost { background: transparent; }
+.btn.rec { background: var(--live); border-color: var(--live); color: #fff; font-weight: 600; }
+.btn.rec:hover { filter: brightness(1.08); }
 .btn.small { padding: 5px 10px; font-size: 13px; }
 .btn.danger { color: var(--live); }
 
@@ -201,6 +203,7 @@ input[type=range] { width: 100%; accent-color: var(--cue); }
     <button class="btn ghost small" id="btnImport" type="button">Nhập file (PDF, Word, TXT, MD)</button>
     <button class="btn ghost small" id="btnExport" type="button">Sao lưu</button>
     <input type="file" id="fileIn" accept=".txt,.md,.markdown,.pdf,.docx,.json,text/plain,text/markdown,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden>
+    <button class="btn rec" id="btnRecord" type="button">● Quay video</button>
     <button class="btn primary" id="btnStart" type="button">▶ Bắt đầu đọc</button>
   </header>
 
@@ -287,6 +290,7 @@ input[type=range] { width: 100%; accent-color: var(--cue); }
         <button type="button" id="modeAuto" aria-pressed="true">Tự động</button>
         <button type="button" id="modeVoice" aria-pressed="false">Theo giọng nói</button>
       </div>
+      <button class="btn rec" id="hCam" type="button">🎥 Quay video</button>
       <button class="btn primary" id="hPlay" type="button">▶ Chạy</button>
       <span id="autoCtl" style="display:inline-flex;gap:6px;align-items:center">
         <button class="btn small" id="hSlower" type="button" aria-label="Chậm hơn">−</button>
@@ -298,7 +302,6 @@ input[type=range] { width: 100%; accent-color: var(--cue); }
       <button class="btn small" id="hMirror" type="button">Lật gương</button>
       <button class="btn small" id="hTop" type="button">Về đầu</button>
       <button class="btn small" id="hFull" type="button">Toàn màn hình</button>
-      <button class="btn small" id="hCam" type="button">🎥 Quay video</button>
       <span class="spacer"></span>
       <span id="time">0:00</span>
       <button class="btn small" id="hExit" type="button">Thoát (Esc)</button>
@@ -918,6 +921,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
   $('hFull').onclick = () => { const el = $('prompter'); if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); else if (el.requestFullscreen) el.requestFullscreen().catch(() => toast('Không bật được toàn màn hình ở đây')); };
   $('hExit').onclick = closePrompter;
   $('btnStart').onclick = openPrompter;
+  $('btnRecord').onclick = () => { openPrompter(); camOn(); };
   window.addEventListener('resize', () => { if (P.open) { measure(); place(); } });
 
   document.addEventListener('keydown', e => {
