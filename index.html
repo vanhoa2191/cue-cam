@@ -561,7 +561,7 @@ input[type=range] { width: 100%; accent-color: var(--cue); }
 </div>
 <div class="toast" id="toast"></div>
 
-<script src="lib/beauty.js?v=5"></script>
+<script src="lib/beauty.js?v=6"></script>
 <script>
 (() => {
   'use strict';
@@ -1465,7 +1465,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
       fxCanvas.classList.toggle('front', cam.facing === 'user'); fxCanvas.style.objectFit = camVideo.style.objectFit;
       try { await camVideo.play(); } catch (e) {}
       $('prompter').classList.add('cam', 'live'); $('cOff').textContent = 'Tắt camera';
-      camActive = true; applyLook(); fxApply(); setupZoom();
+      camActive = true; applyLook(); fxApply(); setupZoom(); setTimeout(orientHint, 600);
       refreshMics(); startMeter(stream);
       measure(); place(); showHud();
       setStatus((cam.facing === 'user' ? 'Camera trước, đặt chữ sát ống kính.' : 'Camera sau.') + (S.mode === 'voice' ? ' Bấm nút đỏ: đếm 3 giây rồi vừa quay vừa chạy chữ theo giọng.' : ' Bấm nút đỏ: đếm 3 giây rồi vừa quay vừa chạy chữ.'));
@@ -1581,6 +1581,13 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
   $('cMicScan').onclick = rescanMics;
   $('cAspect').value = aspect();
   $('cAspect').onchange = () => { if (cam.rec) { $('cAspect').value = aspect(); toast('Dừng quay rồi mới đổi khung được'); return; } S.aspect = $('cAspect').value; saveSettings(); reopenStream('Khung ' + (S.aspect === '9:16' ? 'dọc 9:16' : 'ngang 16:9')); };
+  // the phone turned (or the camera changed size): re-check the crop to the chosen frame
+  camVideo.addEventListener('resize', () => { if (!cam.stream) return; fxApply(); orientHint(); });
+  function orientHint() {
+    const w = camVideo.videoWidth, h = camVideo.videoHeight; if (!w || cam.rec) return;
+    const want = aspect() === '9:16' ? 'p' : 'l', got = h >= w ? 'p' : 'l';
+    if (want !== got) toast(want === 'l' ? 'Khung ngang 16:9: hãy xoay ngang điện thoại để hình rộng và nét. Đang cắt tạm từ hình dọc.' : 'Khung dọc 9:16: hãy cầm dọc điện thoại để hình rộng và nét. Đang cắt tạm từ hình ngang.');
+  }
   function setupZoom() {
     const row = $('zoomRow'), t = cam.stream && cam.stream.getVideoTracks()[0];
     let caps = null; try { caps = t && t.getCapabilities && t.getCapabilities(); } catch (e) {}
@@ -1619,6 +1626,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
     if (!FXB) return;
     try {
     FXB.setQuality(S.fxLite ? 1280 : 1920);
+    FXB.setAspect(cam.kind === 'video' ? (aspect() === '9:16' ? 9 / 16 : 16 / 9) : null);
     FXB.set(S.fx);
     $('cBeauty').classList.toggle('act', fxIsOn());
     } catch (err) { console.error('[beauty]', err); }
