@@ -146,7 +146,9 @@ input[type=range] { width: 100%; accent-color: var(--cue); }
 #prompter.cam { background: #000; }
 #camShade { position: absolute; left: 0; right: 0; top: 0; height: 56%; display: none; pointer-events: none; background: linear-gradient(to bottom, rgba(0,0,0,.72) 0%, rgba(0,0,0,.55) 70%, rgba(0,0,0,0) 100%); }
 #prompter.cam #camShade { display: block; }
-#prompter.cam #stage { bottom: 50%; overflow: hidden; }
+#prompter.cam #stage { overflow: hidden; }
+#hArea { display: none; }
+#prompter.cam #hArea { display: inline-flex; }
 #prompter.cam #content { padding-bottom: 40vh; }
 #prompter.cam #content { text-shadow: 0 2px 6px rgba(0,0,0,.9); }
 #prompter.cam #shade { display: none !important; }
@@ -270,6 +272,8 @@ input[type=range] { width: 100%; accent-color: var(--cue); }
       <div class="field"><div class="row"><label for="sLh">Giãn dòng</label><output id="oLh"></output></div><input type="range" id="sLh" min="1.1" max="2.2" step="0.05"></div>
       <div class="field"><div class="row"><label for="sWidth">Độ rộng cột chữ</label><output id="oWidth"></output></div><input type="range" id="sWidth" min="40" max="100" step="5"></div>
       <div class="field"><div class="row"><label for="sLine">Vị trí chữ đang đọc (focus)</label><output id="oLine"></output></div><input type="range" id="sLine" min="4" max="60" step="1"></div>
+      <div class="field"><div class="row"><label for="sCamFont">Cỡ chữ khi quay video</label><output id="oCamFont"></output></div><input type="range" id="sCamFont" min="14" max="100" step="1"></div>
+      <div class="field"><div class="row"><label for="sCamArea">Vùng chữ khi quay (từ trên xuống)</label><output id="oCamArea"></output></div><input type="range" id="sCamArea" min="35" max="100" step="5"></div>
       <div class="field"><div class="row"><label for="sSpeed">Tốc độ cuộn tự động</label><output id="oSpeed"></output></div><input type="range" id="sSpeed" min="1" max="30" step="1"></div>
       <div class="field"><span style="font-size:13px">Màu chữ</span>
         <div class="swatches" id="colors">
@@ -329,6 +333,7 @@ input[type=range] { width: 100%; accent-color: var(--cue); }
       <button class="btn small" id="hFontDn" type="button" aria-label="Chữ nhỏ hơn">A−</button>
       <button class="btn small" id="hFontUp" type="button" aria-label="Chữ to hơn">A+</button>
       <button class="btn small" id="hMirror" type="button">Lật gương</button>
+      <button class="btn small" id="hArea" type="button">Vùng chữ 65%</button>
       <button class="btn small" id="hFocusUp" type="button" aria-label="Đưa chữ đang đọc lên trên">Focus ▲</button>
       <button class="btn small" id="hFocusDn" type="button" aria-label="Đưa chữ đang đọc xuống dưới">Focus ▼</button>
       <button class="btn small" id="hTop" type="button">Về đầu</button>
@@ -416,8 +421,10 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
   let currentId = store.get('current', scripts[0].id);
   if (!scripts.find(s => s.id === currentId)) currentId = scripts[0].id;
 
-  const DEF = { micId: '', font: (window.innerWidth || 1000) < 700 ? 34 : 56, lh: 1.5, width: 80, line: 12, speed: 8, color: '#f5f2ea', center: false, mirrorX: false, mirrorY: false, shade: true, count: true, wpm: 130, mode: 'auto' };
+  const DEF = { camFont: (window.innerWidth || 1000) < 700 ? 24 : 40, camArea: 65, micId: '', font: (window.innerWidth || 1000) < 700 ? 34 : 56, lh: 1.5, width: 80, line: 12, speed: 8, color: '#f5f2ea', center: false, mirrorX: false, mirrorY: false, shade: true, count: true, wpm: 130, mode: 'auto' };
   const S = Object.assign({}, DEF, store.get('settings', {}));
+  var camActive = false;
+  const FS = () => camActive ? S.camFont : S.font; // font size on the prompter stage
   if (!S.v2) { if (S.line === 30) S.line = 12; S.v2 = 1; }
   const saveSettings = () => store.set('settings', S);
 
@@ -572,6 +579,8 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
   bind('sWidth', 'width', v => v + '%');
   bind('sLine', 'line', v => v + '% từ trên');
   bind('sSpeed', 'speed', v => v);
+  bind('sCamFont', 'camFont', v => v + ' px');
+  bind('sCamArea', 'camArea', v => v + '% màn hình');
   [['tCenter', 'center'], ['tMirrorX', 'mirrorX'], ['tMirrorY', 'mirrorY'], ['tShade', 'shade'], ['tCount', 'count']].forEach(([id, k]) => {
     $(id).checked = S[k]; $(id).addEventListener('change', () => { S[k] = $(id).checked; saveSettings(); applyLook(); });
   });
@@ -579,7 +588,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
     b.setAttribute('aria-pressed', String(b.dataset.c === S.color));
     b.onclick = () => { S.color = b.dataset.c; document.querySelectorAll('#colors button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); saveSettings(); applyLook(); };
   });
-  function syncSettingsUI() { $('sLine').value = S.line; $('oLine').textContent = S.line + '% từ trên'; $('sFont').value = S.font; $('oFont').textContent = S.font + ' px'; $('sSpeed').value = S.speed; $('oSpeed').textContent = S.speed; $('tMirrorX').checked = S.mirrorX; }
+  function syncSettingsUI() { $('sCamFont').value = S.camFont; $('oCamFont').textContent = S.camFont + ' px'; $('sCamArea').value = S.camArea; $('oCamArea').textContent = S.camArea + '% màn hình'; $('sLine').value = S.line; $('oLine').textContent = S.line + '% từ trên'; $('sFont').value = S.font; $('oFont').textContent = S.font + ' px'; $('sSpeed').value = S.speed; $('oSpeed').textContent = S.speed; $('tMirrorX').checked = S.mirrorX; }
 
   /* ---------------- Prompter ---------------- */
   const P = { open: false, playing: false, pos: 0, target: 0, maxPos: 0, words: [], tops: [], idx: 0, last: 0, elapsed: 0, hudT: 0 };
@@ -589,7 +598,10 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
     const pv = $('pv');
     pv.style.fontSize = Math.max(14, S.font * 0.42) + 'px'; pv.style.setProperty('--lh', S.lh); pv.style.color = S.color;
     pv.style.width = S.width + '%'; pv.style.textAlign = S.center ? 'center' : 'left';
-    content.style.fontSize = S.font + 'px'; content.style.lineHeight = S.lh; content.style.color = S.color;
+    content.style.fontSize = FS() + 'px';
+    stage.style.bottom = camActive ? (100 - S.camArea) + '%' : '';
+    $('camShade').style.height = (S.camArea + 6) + '%';
+    $('hArea').textContent = 'Vùng chữ ' + S.camArea + '%'; content.style.lineHeight = S.lh; content.style.color = S.color;
     content.style.width = S.width + '%'; content.style.textAlign = S.center ? 'center' : 'left';
     content.style.paddingLeft = content.style.paddingRight = S.width >= 95 ? '24px' : '0';
     stage.style.transform = `scale(${S.mirrorX ? -1 : 1}, ${S.mirrorY ? -1 : 1})`;
@@ -619,15 +631,15 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
   function measure() {
     P.tops = Array.from(P.spans, s => s.offsetTop);
     P.markers = Array.from(content.querySelectorAll('.mk'), m => m.offsetTop);
-    const lineH = S.font * S.lh;
+    const lineH = FS() * S.lh;
     P.lineY = Math.max(lineH * 0.6, Math.min($('prompter').clientHeight * S.line / 100, stage.clientHeight - lineH));
     P.maxPos = Math.max(0, content.scrollHeight - stage.clientHeight * 0.7);
-    const rl = $('readline'); rl.style.top = P.lineY + 'px'; rl.querySelector('.band').style.fontSize = S.font * S.lh + 'px';
-    $('shade').style.height = Math.max(0, P.lineY - S.font * S.lh * 0.6) + 'px';
+    const rl = $('readline'); rl.style.top = P.lineY + 'px'; rl.querySelector('.band').style.fontSize = FS() * S.lh + 'px';
+    $('shade').style.height = Math.max(0, P.lineY - FS() * S.lh * 0.6) + 'px';
   }
   function place() {
     P.pos = Math.min(Math.max(P.pos, 0), P.maxPos);
-    scroller.style.transform = `translateY(${P.lineY - P.pos - S.font * S.lh * 0.5}px)`;
+    scroller.style.transform = `translateY(${P.lineY - P.pos - FS() * S.lh * 0.5}px)`;
     $('progress').firstElementChild.style.width = (P.maxPos ? P.pos / P.maxPos * 100 : 0) + '%';
   }
   function wordAtPos(pos) { let lo = 0; for (let k = 0; k < P.tops.length; k++) { if (P.tops[k] <= pos + 2) lo = k; else break; } return lo; }
@@ -664,7 +676,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
     const cd = $('countdown'); let n = 3; cd.textContent = n; cd.classList.add('on');
     const t = setInterval(() => { n--; if (n <= 0) { clearInterval(t); cd.classList.remove('on'); done(); } else cd.textContent = n; }, 750);
   }
-  function speedPx() { return S.speed * 7 * (S.font / 56); }
+  function speedPx() { return S.speed * 7 * (FS() / 56); }
 
   function tick(now) {
     if (!P.open) return;
@@ -1057,6 +1069,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
       cam.stream = stream; camVideo.srcObject = stream; camVideo.classList.toggle('front', cam.facing === 'user');
       try { await camVideo.play(); } catch (e) {}
       $('prompter').classList.add('cam'); $('hCam').textContent = '🎥 Đang bật camera';
+      camActive = true; applyLook();
       refreshMics(); startMeter(stream);
       measure(); place(); showHud();
       setStatus(cam.facing === 'user' ? 'Camera trước. Đặt điện thoại để chữ nằm sát ống kính, mắt sẽ gần như nhìn thẳng.' : 'Camera sau.');
@@ -1074,6 +1087,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
     if (cam.stream) cam.stream.getTracks().forEach(t => t.stop());
     cam.stream = null; camVideo.srcObject = null;
     $('prompter').classList.remove('cam'); $('hCam').textContent = '🎥 Quay video';
+    camActive = false; applyLook();
     if (P.open) { measure(); place(); }
   }
   function micConstraint() {
@@ -1211,12 +1225,13 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
   $('modeVoice').onclick = () => setMode('voice');
   $('hPlay').onclick = () => togglePlay();
   const speed = d => { if (rhythm.on) { S.wpm = Math.max(60, Math.min(260, S.wpm + d * 10)); saveSettings(); $('speedOut').textContent = 'Nhịp ' + S.wpm + ' từ/phút'; showHud(); return; } S.speed = Math.max(1, Math.min(30, S.speed + d)); saveSettings(); syncSettingsUI(); applyLook(); showHud(); };
-  const fontBy = d => { const ratio = P.pos / (content.scrollHeight || 1); S.font = Math.max(24, Math.min(140, S.font + d)); saveSettings(); syncSettingsUI(); applyLook(); P.pos = ratio * content.scrollHeight; P.target = S.mode === 'voice' ? (P.tops[P.idx] || 0) : P.pos; place(); showHud(); };
+  const fontBy = d => { const ratio = P.pos / (content.scrollHeight || 1); if (camActive) S.camFont = Math.max(14, Math.min(100, S.camFont + d / 2)); else S.font = Math.max(24, Math.min(140, S.font + d)); saveSettings(); syncSettingsUI(); applyLook(); P.pos = ratio * content.scrollHeight; P.target = S.mode === 'voice' ? (P.tops[P.idx] || 0) : P.pos; place(); showHud(); };
   $('hSlower').onclick = () => speed(-1);
   $('hFaster').onclick = () => speed(1);
   $('hFontDn').onclick = () => fontBy(-4);
   $('hFontUp').onclick = () => fontBy(4);
   $('hMirror').onclick = () => { S.mirrorX = !S.mirrorX; saveSettings(); syncSettingsUI(); applyLook(); };
+  $('hArea').onclick = () => { const steps = [45, 55, 65, 75, 85, 100]; const i = steps.indexOf(S.camArea); S.camArea = steps[(i + 1) % steps.length]; saveSettings(); applyLook(); showHud(); toast('Chữ chiếm ' + S.camArea + '% màn hình từ trên xuống'); };
   const focusBy = d => { S.line = Math.max(4, Math.min(60, S.line + d)); saveSettings(); syncSettingsUI(); applyLook(); showHud(); toast('Focus: ' + S.line + '% từ trên xuống'); };
   $('hFocusUp').onclick = () => focusBy(-3);
   $('hFocusDn').onclick = () => focusBy(3);
@@ -1236,8 +1251,8 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
     if (k === ' ' || k === 'Spacebar') togglePlay();
     else if (k === 'ArrowUp') speed(1);
     else if (k === 'ArrowDown') speed(-1);
-    else if (k === 'ArrowRight') nudge(S.font * S.lh * 2);
-    else if (k === 'ArrowLeft') nudge(-S.font * S.lh * 2);
+    else if (k === 'ArrowRight') nudge(FS() * S.lh * 2);
+    else if (k === 'ArrowLeft') nudge(-FS() * S.lh * 2);
     else if (k === 'PageDown') jumpMarker(1);
     else if (k === 'PageUp') jumpMarker(-1);
     else if (k === 'Home') $('hTop').click();
