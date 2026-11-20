@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Làm nét phông · CueCam</title>
+<meta name="theme-color" content="#0d0f12">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<style>
+:root { --ink:#0d0f12; --panel:#15181d; --line:#262a31; --text:#e9e6df; --muted:#8d929b; --cue:#ffb547; --live:#ff5a4f; --ok:#5fd08a; }
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--ink); color: var(--text); font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+main { max-width: 560px; margin: 0 auto; padding: 14px 16px 40px; }
+header { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+header a { color: var(--muted); text-decoration: none; font-size: 22px; padding: 4px 8px 4px 0; }
+h1 { font-size: 19px; margin: 0; }
+.tag { font-size: 11px; color: var(--ink); background: var(--cue); border-radius: 6px; padding: 1px 6px; margin-left: 4px; vertical-align: middle; }
+p.lead { color: var(--muted); margin: 4px 0 14px; font-size: 14px; }
+section { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin: 12px 0; }
+h2 { font-size: 14px; margin: 0 0 8px; color: var(--muted); font-weight: 600; }
+label.file { display: block; text-align: center; padding: 14px; border: 1px dashed var(--line); border-radius: 10px; cursor: pointer; }
+label.file input { display: none; }
+.info { color: var(--muted); font-size: 13px; margin-top: 8px; min-height: 1em; }
+.seg { display: flex; gap: 6px; flex-wrap: wrap; }
+.seg button { flex: 1; min-width: 80px; }
+button { font: inherit; color: var(--text); background: #1d2128; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; cursor: pointer; }
+button.on { border-color: var(--cue); color: var(--cue); }
+button.go { background: var(--cue); color: var(--ink); border-color: var(--cue); font-weight: 600; }
+button:disabled { opacity: .45; cursor: default; }
+.row { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
+.row > * { flex: 1; }
+input[type=range] { width: 100%; accent-color: var(--cue); }
+input[type=color] { width: 48px; height: 38px; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: none; flex: 0 0 48px; }
+.stage { position: relative; background: #000; border-radius: 10px; overflow: hidden; display: flex; justify-content: center; }
+.stage canvas, .stage video { max-width: 100%; max-height: 60vh; display: block; }
+.hint { position: absolute; left: 8px; bottom: 8px; font-size: 12px; background: rgba(0,0,0,.55); padding: 2px 8px; border-radius: 6px; color: #ddd; }
+.bar { height: 6px; background: var(--line); border-radius: 4px; overflow: hidden; margin: 10px 0 6px; }
+.bar i { display: block; height: 100%; width: 0; background: var(--cue); transition: width .2s; }
+.stats { font-variant-numeric: tabular-nums; font-size: 14px; }
+.stats b { color: var(--cue); }
+.small { font-size: 12px; color: var(--muted); }
+.err { color: var(--live); }
+.hide { display: none !important; }
+a.btn { display: block; text-align: center; text-decoration: none; }
+</style>
+</head>
+<body>
+<main>
+  <header><a href="./" aria-label="Về CueCam">‹</a><h1>Làm nét phông <span class="tag">thử nghiệm</span></h1></header>
+  <p class="lead">Chạy lại video đã quay bằng AI tách người loại nặng (tách tới từng sợi tóc, viền không rung). Chậm hơn lúc quay nhiều, nhưng video lưu ra đẹp hơn. Nên quay với <b>Phông nền: Tắt</b> rồi đưa video vào đây.</p>
+
+  <section>
+    <h2>1. Video</h2>
+    <label class="file">Chọn video đã quay<input type="file" id="file" accept="video/*"></label>
+    <div class="info" id="vinfo"></div>
+  </section>
+
+  <section>
+    <h2>2. Phông nền</h2>
+    <div class="seg" id="bgSeg">
+      <button data-bg="blur" class="on">Làm mờ</button>
+      <button data-bg="color">Màu trơn</button>
+      <button data-bg="image">Ảnh</button>
+    </div>
+    <div class="row" id="blurRow"><span class="small" style="flex:0 0 auto">Độ mờ</span><input type="range" id="blur" min="10" max="100" value="60"></div>
+    <div class="row hide" id="colorRow"><input type="color" id="color" value="#20324a"><span class="small">Chọn màu nền</span></div>
+    <div class="row hide" id="imgRow"><label class="file" style="padding:10px">Chọn ảnh nền<input type="file" id="img" accept="image/*"></label></div>
+  </section>
+
+  <section>
+    <h2>3. Kích thước video xuất</h2>
+    <div class="seg" id="resSeg">
+      <button data-res="1280">720p · nhanh hơn</button>
+      <button data-res="1920" class="on">1080p · nét</button>
+    </div>
+  </section>
+
+  <section>
+    <div class="row" style="margin-top:0">
+      <button id="bench" disabled>Đo thử 5 giây đầu</button>
+      <button id="run" class="go" disabled>Xử lý cả video</button>
+    </div>
+    <div id="prog" class="hide">
+      <div class="bar"><i id="barI"></i></div>
+      <div class="stats" id="stats"></div>
+      <div class="small" id="sub"></div>
+      <div class="row" id="cancelRow"><button id="cancel">Dừng</button></div>
+    </div>
+    <div class="info" id="msg"></div>
+  </section>
+
+  <section id="stageBox" class="hide">
+    <div class="stage" id="stage"><canvas id="view"></canvas><span class="hint">Giữ để xem bản gốc</span></div>
+  </section>
+
+  <section id="resBox" class="hide">
+    <h2>Kết quả</h2>
+    <div class="stage"><video id="outVid" controls playsinline></video></div>
+    <div class="row">
+      <a class="btn" id="save"><button class="go" style="width:100%">Lưu video</button></a>
+      <button id="share">Chia sẻ</button>
+    </div>
+    <div class="info" id="resInfo"></div>
+  </section>
+
+  <p class="small">Dùng mô hình Robust Video Matting (Lin và cộng sự, giấy phép GPL-3.0), ONNX Runtime Web và Mediabunny (MPL-2.0). Lần đầu tải khoảng 16 MB. Video không rời khỏi máy bạn.</p>
+</main>
+
+<script type="module">
+import * as MB from './lib/matte/mediabunny.min.mjs?v=1';
+import { createMatter, composite, makeBlurBg, makeStillBg } from './lib/matte/rvm.js?v=1';
+
+const $ = id => document.getElementById(id);
+const base = new URL('./lib/', location.href).href;
+const opt = { bg: 'blur', blur: 60, color: '#20324a', img: null, res: 1920 };
+let file = null, meta = null, matter = null, conv = null, outUrl = null, outBlob = null, wake = null;
+
+const segPick = (seg, attr, fn) => seg.addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  for (const x of seg.children) x.classList.toggle('on', x === b); fn(b.dataset[attr]);
+});
+segPick($('bgSeg'), 'bg', v => { opt.bg = v; $('blurRow').classList.toggle('hide', v !== 'blur'); $('colorRow').classList.toggle('hide', v !== 'color'); $('imgRow').classList.toggle('hide', v !== 'image'); });
+segPick($('resSeg'), 'res', v => { opt.res = +v; showInfo(); });
+$('blur').oninput = e => opt.blur = +e.target.value;
+$('color').oninput = e => opt.color = e.target.value;
+$('img').onchange = async e => { const f = e.target.files[0]; if (f) opt.img = await createImageBitmap(f); };
+
+const fmtT = s => { s = Math.max(0, Math.round(s)); const m = Math.floor(s / 60); return m ? m + ' phút ' + String(s % 60).padStart(2, '0') + ' giây' : s + ' giây'; };
+const outSize = () => {
+  const w = meta.w, h = meta.h, k = Math.min(1, opt.res / Math.max(w, h));
+  return [Math.round(w * k / 2) * 2, Math.round(h * k / 2) * 2];
+};
+function showInfo() {
+  if (!meta) return;
+  const [W, H] = outSize();
+  $('vinfo').textContent = `${meta.w}×${meta.h} · ${fmtT(meta.dur)} · khoảng ${Math.round(meta.fps)} khung/giây · xuất ${W}×${H}`;
+}
+
+$('file').onchange = async e => {
+  file = e.target.files[0]; meta = null; $('run').disabled = $('bench').disabled = true; $('msg').textContent = '';
+  if (!file) return;
+  $('vinfo').textContent = 'Đang đọc video…';
+  try {
+    const input = new MB.Input({ source: new MB.BlobSource(file), formats: MB.ALL_FORMATS });
+    const vt = await input.getPrimaryVideoTrack(); if (!vt) throw new Error('Không thấy hình trong tệp này');
+    const dur = await input.computeDuration(); let fps = 30;
+    try { const st = await vt.computePacketStats(90); if (st.averagePacketRate) fps = st.averagePacketRate; } catch (e) {}
+    meta = { w: vt.displayWidth, h: vt.displayHeight, dur, fps };
+    showInfo(); $('run').disabled = $('bench').disabled = false;
+  } catch (err) { $('vinfo').innerHTML = '<span class="err">Không đọc được video: ' + (err.message || err) + '</span>'; }
+};
+
+async function loadModel() {
+  if (matter) return matter;
+  $('stats').textContent = 'Đang tải AI (lần đầu khoảng 16 MB)…';
+  matter = await createMatter(base);
+  return matter;
+}
+
+async function go(bench) {
+  if (!file || !meta) return;
+  $('run').disabled = $('bench').disabled = true; $('prog').classList.remove('hide'); $('cancelRow').classList.remove('hide'); $('resBox').classList.add('hide');
+  $('msg').textContent = ''; $('barI').style.width = '0'; $('sub').textContent = '';
+  try { wake = await navigator.wakeLock?.request('screen'); } catch (e) {}
+  const t0 = performance.now();
+  try {
+    const m = await loadModel(); m.reset();
+    const [W, H] = outSize(), n = W * H;
+    const work = new OffscreenCanvas(W, H), wx = work.getContext('2d', { willReadFrequently: true });
+    const outC = new OffscreenCanvas(W, H), ox = outC.getContext('2d'), outImg = new ImageData(W, H);
+    const view = $('view'), vk = Math.min(1, 720 / Math.max(W, H)); view.width = Math.round(W * vk); view.height = Math.round(H * vk);
+    const vx = view.getContext('2d'); $('stageBox').classList.remove('hide');
+    const blurBg = opt.bg === 'blur' ? makeBlurBg(W, H) : null;
+    const still = opt.bg === 'blur' ? null : makeStillBg(W, H, opt.bg === 'image' ? opt.img : null, opt.color);
+    const endT = bench ? Math.min(5, meta.dur) : meta.dur, total = Math.max(1, Math.round(endT * meta.fps));
+    let frames = 0, aiMs = 0, allMs = 0, holding = false, tStart = 0;
+    const stage = $('stage');
+    stage.onpointerdown = () => holding = true; stage.onpointerup = stage.onpointerleave = stage.onpointercancel = () => holding = false;
+
+    const input = new MB.Input({ source: new MB.BlobSource(file), formats: MB.ALL_FORMATS });
+    const output = new MB.Output({ format: new MB.Mp4OutputFormat({ fastStart: 'in-memory' }), target: new MB.BufferTarget() });
+    const aac = await MB.canEncodeAudio('aac').catch(() => false);
+    conv = await MB.Conversion.init({
+      input, output, trim: bench ? { start: 0, end: endT } : undefined,
+      video: {
+        width: W, height: H, fit: 'fill', forceTranscode: true, bitrate: MB.QUALITY_HIGH, processedWidth: W, processedHeight: H,
+        process: async sample => {
+          const f0 = performance.now(); if (!tStart) tStart = f0;
+          sample.draw(wx, 0, 0, W, H);
+          const px = wx.getImageData(0, 0, W, H).data;
+          const a0 = performance.now();
+          const { fgr, pha } = await m.run(px, W, H);
+          aiMs += performance.now() - a0;
+          composite(fgr, pha, blurBg ? blurBg(work, pha, opt.blur) : still, outImg.data, n);
+          ox.putImageData(outImg, 0, 0);
+          vx.drawImage(holding ? work : outC, 0, 0, view.width, view.height);
+          frames++; allMs += performance.now() - f0;
+          if (frames % 3 === 1) {
+            const el = (performance.now() - tStart) / 1000, fps = frames / el, left = Math.max(0, total - frames) / fps;
+            $('barI').style.width = Math.min(100, frames / total * 100) + '%';
+            $('stats').innerHTML = `Khung ${frames}/${total} · <b>${fps.toFixed(1)} khung/giây</b> · còn khoảng ${fmtT(left)}`;
+            $('sub').textContent = `AI ${Math.round(aiMs / frames)} ms/khung · cả khung ${Math.round(allMs / frames)} ms · chạy bằng ${m.ep === 'webgpu' ? 'GPU (WebGPU)' : 'CPU (chậm)'}`;
+          }
+          return outC;
+        }
+      },
+      audio: aac ? { codec: 'aac' } : undefined
+    });
+    if (!conv.isValid) throw new Error('Máy không mã hoá được video này (' + conv.discardedTracks.map(d => d.reason).join(', ') + ')');
+    $('stats').textContent = 'Đang bắt đầu…';
+    await conv.execute();
+    const el = (performance.now() - tStart) / 1000, fps = frames / el;
+    outBlob = new Blob([output.target.buffer], { type: 'video/mp4' });
+    if (outUrl) URL.revokeObjectURL(outUrl); outUrl = URL.createObjectURL(outBlob);
+    $('outVid').src = outUrl; $('save').href = outUrl;
+    $('save').download = (file.name.replace(/\.[^.]+$/, '') || 'video') + (bench ? '-thu' : '') + '-phong.mp4';
+    $('resBox').classList.remove('hide'); $('barI').style.width = '100%';
+    $('stats').innerHTML = `Xong ${frames} khung trong ${fmtT(el)} · <b>${fps.toFixed(1)} khung/giây</b>`;
+    const whole = meta.dur * meta.fps / fps;
+    $('resInfo').textContent = bench
+      ? `Với tốc độ này, cả video (${fmtT(meta.dur)}) sẽ mất khoảng ${fmtT(whole)}, tức ${(whole / meta.dur).toFixed(1)} lần độ dài video.`
+      : `Mất ${(el / meta.dur).toFixed(1)} lần độ dài video. Tệp ${(outBlob.size / 1048576).toFixed(1)} MB.`;
+  } catch (err) {
+    if (err instanceof MB.ConversionCanceledError) $('msg').textContent = 'Đã dừng.';
+    else { console.error(err); $('msg').innerHTML = '<span class="err">Lỗi: ' + (err.message || err) + '</span>'; }
+  } finally {
+    conv = null; try { wake && wake.release(); } catch (e) {} wake = null;
+    $('run').disabled = $('bench').disabled = false; $('cancelRow').classList.add('hide');
+  }
+}
+$('bench').onclick = () => go(true);
+$('run').onclick = () => go(false);
+$('cancel').onclick = () => conv && conv.cancel();
+$('share').onclick = async () => {
+  if (!outBlob) return;
+  const f = new File([outBlob], $('save').download, { type: 'video/mp4' });
+  try { if (navigator.canShare && navigator.canShare({ files: [f] })) await navigator.share({ files: [f] }); else $('save').click(); } catch (e) {}
+};
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && conv && !wake) navigator.wakeLock?.request('screen').then(w => wake = w).catch(() => {}); });
+</script>
+</body>
+</html>
