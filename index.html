@@ -302,6 +302,27 @@ input[type=range] { width: 100%; accent-color: var(--cue); }
 #countdown { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; font-family: var(--font-brand); font-size: 30vmin; color: var(--cue); z-index: 4; background: rgba(0,0,0,.6); }
 #countdown.on { display: flex; }
 
+.btn.support { background: linear-gradient(135deg, #ff7a59, var(--cue)); border-color: transparent; color: #1b1307; font-weight: 700; box-shadow: 0 0 0 0 rgba(255,122,89,.5); animation: supportPulse 2.8s ease-out infinite; }
+.btn.support .heart { display: inline-block; animation: heartBeat 1.6s ease-in-out infinite; }
+@keyframes supportPulse { 0% { box-shadow: 0 0 0 0 rgba(255,122,89,.45); } 70%,100% { box-shadow: 0 0 0 10px rgba(255,122,89,0); } }
+@keyframes heartBeat { 0%,60%,100% { transform: scale(1); } 30% { transform: scale(1.25); } }
+#support { position: fixed; inset: 0; z-index: 71; background: rgba(0,0,0,.6); display: none; align-items: center; justify-content: center; padding: 12px; }
+#support.on { display: flex; }
+#support .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; width: 100%; max-width: 420px; max-height: 100%; overflow-y: auto; padding: 18px; display: grid; gap: 14px; }
+#support h2 { margin: 0; font-family: var(--font-brand); font-size: 20px; display: flex; justify-content: space-between; align-items: center; }
+#support p { margin: 0; line-height: 1.55; }
+#support .tiers { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+#support .tier { display: grid; gap: 2px; justify-items: center; padding: 10px 4px; border: 1.5px solid var(--line); background: transparent; color: inherit; border-radius: 12px; cursor: pointer; font: inherit; }
+#support .tier b { font-size: 20px; font-variant-numeric: tabular-nums; }
+#support .tier span { font-size: 11.5px; color: var(--muted); }
+#support .tier[aria-pressed=true] { border-color: var(--cue); background: rgba(255,170,60,.14); }
+#support .qrbox { background: #fff; border-radius: 12px; padding: 10px; width: min(250px, 100%); justify-self: center; }
+#support .qrbox canvas { display: block; width: 100%; height: auto; image-rendering: pixelated; }
+#support .amt { text-align: center; font-weight: 600; }
+#support .acts { display: grid; gap: 8px; }
+#support .acts .btn { text-decoration: none; justify-content: center; padding: 12px; font-size: 15px; }
+#support .acct { display: grid; gap: 4px; font-size: 13.5px; color: var(--muted); text-align: center; }
+#support .note { font-size: 12.5px; color: var(--muted); text-align: center; }
 #about { position: fixed; inset: 0; z-index: 70; background: rgba(0,0,0,.6); display: none; align-items: center; justify-content: center; padding: 16px max(16px, env(safe-area-inset-right, 0px)) 16px max(16px, env(safe-area-inset-left, 0px)); }
 #about.on { display: flex; }
 #about .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; width: 100%; max-width: 420px; max-height: 100%; overflow-y: auto; padding: 20px; display: grid; gap: 16px; }
@@ -363,9 +384,10 @@ input[type=range] { width: 100%; accent-color: var(--cue); }
     <div class="brand"><span class="tally" aria-hidden="true"></span>CueCam <small>teleprompter cuộn theo giọng nói</small></div>
     <div class="spacer"></div>
     <nav class="tools" aria-label="Công cụ">
+      <button class="btn small support" id="btnSupport" type="button"><span class="heart" aria-hidden="true">♥</span> Ủng hộ tác giả</button>
       <button class="btn ghost small" id="btnLibrary" type="button">🎞 Thư viện</button>
       <span class="menuwrap"><button class="btn ghost small" id="btnMenu" type="button" aria-expanded="false" aria-label="Thêm">⋯</button>
-        <span class="menu" id="topMenu"><button class="btn ghost small" id="btnExport" type="button">💾 Sao lưu kịch bản</button><button class="btn ghost small" id="btnAbout" type="button">♥ Liên hệ & ủng hộ</button><button class="btn ghost small" id="btnSettings" type="button">⚙ Cài đặt</button></span></span>
+        <span class="menu" id="topMenu"><button class="btn ghost small" id="btnExport" type="button">💾 Sao lưu kịch bản</button><button class="btn ghost small" id="btnAbout" type="button">☎ Liên hệ tác giả</button><button class="btn ghost small" id="btnSettings" type="button">⚙ Cài đặt</button></span></span>
     </nav>
     <input type="file" id="fileIn" accept=".txt,.md,.markdown,.pdf,.docx,.json,text/plain,text/markdown,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden>
     <div class="actions">
@@ -542,6 +564,28 @@ input[type=range] { width: 100%; accent-color: var(--cue); }
     </div>
   </div>
 </div>
+<div id="support" role="dialog" aria-modal="true" aria-labelledby="supTitle">
+  <div class="card">
+    <h2><span id="supTitle">♥ Ủng hộ tác giả</span><button class="btn small" id="supClose" type="button">Đóng</button></h2>
+    <p>CueCam miễn phí cho mọi người. Mỗi sự ủng hộ của bạn là động lực để mình tiếp tục làm app tốt hơn và giữ app luôn miễn phí. Cảm ơn bạn rất nhiều!</p>
+    <div class="tiers" role="group" aria-label="Chọn gói ủng hộ">
+      <button class="tier" type="button" data-amt="199000" aria-pressed="true"><b>199k</b><span>Cà phê</span></button>
+      <button class="tier" type="button" data-amt="499000" aria-pressed="false"><b>499k</b><span>Đồng hành</span></button>
+      <button class="tier" type="button" data-amt="999000" aria-pressed="false"><b>999k</b><span>Tri kỷ</span></button>
+    </div>
+    <div class="qrbox"><canvas id="supQR" width="300" height="300" role="img" aria-label="Mã VietQR chuyển khoản"></canvas></div>
+    <div class="amt" id="supAmt"></div>
+    <div class="acts">
+      <a class="btn primary" id="supOpen" href="#" target="_blank" rel="noopener">🏦 Mở app ngân hàng</a>
+      <button class="btn" id="supSave" type="button">⬇ Tải mã QR về máy</button>
+    </div>
+    <p class="note">Nếu nút mở app không chạy, hãy bấm “Tải mã QR về máy”, rồi mở app ngân hàng và chọn quét mã từ ảnh trong máy. Hoặc dùng điện thoại khác quét thẳng mã trên màn hình.</p>
+    <div class="acct">
+      <span>Chủ tài khoản: <b>NGUYEN VAN HOA</b> · MB Bank</span>
+      <span>Số tài khoản: <b>131913131</b> <button class="btn small" type="button" data-copy="131913131">Chép STK</button></span>
+    </div>
+  </div>
+</div>
 <div id="about" role="dialog" aria-modal="true" aria-labelledby="aboutTitle">
   <div class="card">
     <h2><span id="aboutTitle">CueCam <small class="appver" style="font-weight:400;opacity:.6;font-size:.6em"></small></span><button class="btn small" id="aboutClose" type="button">Đóng</button></h2>
@@ -551,14 +595,9 @@ input[type=range] { width: 100%; accent-color: var(--cue); }
       <div class="row2"><span class="big">0334 339 341</span><a class="btn small" href="tel:0334339341">Gọi</a><button class="btn small" type="button" data-copy="0334339341">Chép số</button></div>
     </div>
     <div>
-      <h3>Ủng hộ (donation)</h3>
-      <p>Quét mã VietQR bằng app ngân hàng bất kỳ.</p>
-    </div>
-    <div class="qr"><img src="vietqr-donate.svg" alt="Mã VietQR chuyển khoản MB Bank, số tài khoản 131913131, NGUYEN VAN HOA" width="240" height="240"></div>
-    <div>
-      <p>Chủ tài khoản: <b>NGUYEN VAN HOA</b></p>
-      <p>Ngân hàng: <b>MB Bank</b></p>
-      <div class="row2"><span>Số tài khoản:</span><span class="big">131913131</span><button class="btn small" type="button" data-copy="131913131">Chép STK</button></div>
+      <h3>Ủng hộ</h3>
+      <p>CueCam miễn phí. Nếu app giúp ích cho bạn, bạn có thể ủng hộ tác giả để app luôn miễn phí.</p>
+      <div class="row2" style="margin-top:8px"><button class="btn primary small" id="aboutSupport" type="button">♥ Ủng hộ tác giả</button></div>
     </div>
   </div>
 </div>
@@ -2078,7 +2117,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
     else if (k === 'PageUp') jumpMarker(-1);
     else if (k === 'Home') $('hTop').click();
     else if (k === 'End') { P.pos = P.maxPos; P.target = P.pos; place(); }
-    else if (k === 'Escape') closePrompter();
+    else if (k === 'Escape') { if ($('support').classList.contains('on')) $('support').classList.remove('on'); else closePrompter(); }
     else if (k === 'm' || k === 'M') $('hMirror').click();
     else if (k === 'v' || k === 'V') setMode(S.mode === 'voice' ? 'auto' : 'voice');
     else if (k === '+' || k === '=') fontBy(4);
@@ -2097,6 +2136,83 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
 
   /* About / donation */
   $('btnAbout').onclick = () => $('about').classList.add('on');
+
+  /* Ủng hộ tác giả: VietQR động theo gói */
+  const SUP = { bin: '970422', acc: '131913131', name: 'NGUYEN VAN HOA', note: 'Ung ho CueCam', amt: 199000 };
+  const crc16 = str => { let c = 0xFFFF; for (let i = 0; i < str.length; i++) { c ^= str.charCodeAt(i) << 8; for (let k = 0; k < 8; k++) c = (c & 0x8000) ? ((c << 1) ^ 0x1021) & 0xFFFF : (c << 1) & 0xFFFF; } return c.toString(16).toUpperCase().padStart(4, '0'); };
+  const tlv = (id, v) => id + String(v.length).padStart(2, '0') + v;
+  const vietQRPayload = amt => {
+    const acct = tlv('00', 'A000000727') + tlv('01', tlv('00', SUP.bin) + tlv('01', SUP.acc)) + tlv('02', 'QRIBFTTA');
+    const p = tlv('00', '01') + tlv('01', '12') + tlv('38', acct) + tlv('53', '704') + tlv('54', String(amt)) + tlv('58', 'VN') + tlv('62', tlv('08', SUP.note)) + '6304';
+    return p + crc16(p);
+  };
+  /* QR encoder: byte mode, ECC level M, versions 1-10 */
+  const qrEncode = text => {
+    const data = Array.from(new TextEncoder().encode(text));
+    const EC = [10,16,26,18,24,16,18,22,22,26], NB = [1,1,1,2,2,4,4,4,5,5];
+    const rawMods = v => { let r = (16 * v + 128) * v + 64; if (v >= 2) { const a = Math.floor(v / 7) + 2; r -= (25 * a - 10) * a - 55; if (v >= 7) r -= 36; } return r; };
+    let ver = 1, cap;
+    for (;; ver++) { if (ver > 10) throw new Error('qr too long'); cap = Math.floor(rawMods(ver) / 8) - EC[ver - 1] * NB[ver - 1]; if (data.length + 2 <= cap) break; }
+    const bits = []; const put = (v, n) => { for (let i = n - 1; i >= 0; i--) bits.push((v >>> i) & 1); };
+    put(4, 4); put(data.length, 8); data.forEach(b => put(b, 8));
+    put(0, Math.min(4, cap * 8 - bits.length)); while (bits.length % 8) bits.push(0);
+    const cw = []; for (let i = 0; i < bits.length; i += 8) cw.push(parseInt(bits.slice(i, i + 8).join(''), 2));
+    for (let pad = 0xEC; cw.length < cap; pad ^= 0xEC ^ 0x11) cw.push(pad);
+    const exp = new Array(512), log = new Array(256); { let x = 1; for (let i = 0; i < 255; i++) { exp[i] = x; log[x] = i; x <<= 1; if (x & 256) x ^= 0x11D; } for (let i = 255; i < 512; i++) exp[i] = exp[i - 255]; }
+    const gmul = (a, b) => (a && b) ? exp[log[a] + log[b]] : 0;
+    const ecLen = EC[ver - 1]; let gen = [1];
+    for (let i = 0; i < ecLen; i++) { const n = new Array(gen.length + 1).fill(0); gen.forEach((c, j) => { n[j] ^= c; n[j + 1] ^= gmul(c, exp[i]); }); gen = n; }
+    const nb = NB[ver - 1], total = Math.floor(rawMods(ver) / 8), nShort = nb - total % nb, shortLen = Math.floor(total / nb);
+    const blocks = []; let off = 0;
+    for (let b = 0; b < nb; b++) { const dl = shortLen - ecLen + (b < nShort ? 0 : 1); const d = cw.slice(off, off + dl); off += dl; const rem = new Array(ecLen).fill(0); d.forEach(x => { const f = x ^ rem.shift(); rem.push(0); gen.slice(1).forEach((c, j) => { rem[j] ^= gmul(c, f); }); }); blocks.push({ d, e: rem }); }
+    const out = []; for (let i = 0; i < shortLen - ecLen + 1; i++) blocks.forEach(b => { if (i < b.d.length) out.push(b.d[i]); }); for (let i = 0; i < ecLen; i++) blocks.forEach(b => out.push(b.e[i]));
+    const sz = ver * 4 + 17, m = [], fn = []; for (let i = 0; i < sz; i++) { m.push(new Array(sz).fill(false)); fn.push(new Array(sz).fill(false)); }
+    const setF = (x, y, d) => { if (x >= 0 && y >= 0 && x < sz && y < sz) { m[y][x] = d; fn[y][x] = true; } };
+    for (let i = 0; i < sz; i++) { setF(6, i, i % 2 === 0); setF(i, 6, i % 2 === 0); }
+    const finder = (cx, cy) => { for (let dy = -4; dy <= 4; dy++) for (let dx = -4; dx <= 4; dx++) { const d = Math.max(Math.abs(dx), Math.abs(dy)); setF(cx + dx, cy + dy, d !== 2 && d !== 4); } };
+    finder(3, 3); finder(sz - 4, 3); finder(3, sz - 4);
+    if (ver >= 2) { const n = Math.floor(ver / 7) + 2, step = Math.floor((ver * 8 + n * 3 + 5) / (n * 4 - 4)) * 2, pos = [6]; for (let p = sz - 7; pos.length < n; p -= step) pos.splice(1, 0, p);
+      pos.forEach((px, i) => pos.forEach((py, j) => { if ((i === 0 && j === 0) || (i === 0 && j === n - 1) || (i === n - 1 && j === 0)) return; for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) setF(px + dx, py + dy, Math.max(Math.abs(dx), Math.abs(dy)) !== 1); })); }
+    const fmt = mask => { const d = (0 << 3) | mask; let r = d; for (let i = 0; i < 10; i++) r = (r << 1) ^ ((r >>> 9) * 0x537); const b = ((d << 10) | r) ^ 0x5412; const g = i => ((b >>> i) & 1) !== 0;
+      for (let i = 0; i <= 5; i++) setF(8, i, g(i)); setF(8, 7, g(6)); setF(8, 8, g(7)); setF(7, 8, g(8)); for (let i = 9; i < 15; i++) setF(14 - i, 8, g(i));
+      for (let i = 0; i < 8; i++) setF(sz - 1 - i, 8, g(i)); for (let i = 8; i < 15; i++) setF(8, sz - 15 + i, g(i)); setF(8, sz - 8, true); };
+    fmt(0);
+    if (ver >= 7) { let r = ver; for (let i = 0; i < 12; i++) r = (r << 1) ^ ((r >>> 11) * 0x1F25); const b = (ver << 12) | r; for (let i = 0; i < 18; i++) { const bit = ((b >>> i) & 1) !== 0, a = sz - 11 + i % 3, c = Math.floor(i / 3); setF(a, c, bit); setF(c, a, bit); } }
+    const ob = []; out.forEach(c => { for (let i = 7; i >= 0; i--) ob.push(((c >>> i) & 1) !== 0); });
+    let k = 0; for (let right = sz - 1; right >= 1; right -= 2) { if (right === 6) right = 5; for (let v = 0; v < sz; v++) for (let j = 0; j < 2; j++) { const x = right - j, up = ((right + 1) & 2) === 0, y = up ? sz - 1 - v : v; if (!fn[y][x] && k < ob.length) m[y][x] = ob[k++]; } }
+    const masks = [(x, y) => (x + y) % 2 === 0, (x, y) => y % 2 === 0, (x, y) => x % 3 === 0, (x, y) => (x + y) % 3 === 0, (x, y) => (Math.floor(x / 3) + Math.floor(y / 2)) % 2 === 0, (x, y) => x * y % 2 + x * y % 3 === 0, (x, y) => (x * y % 2 + x * y % 3) % 2 === 0, (x, y) => ((x + y) % 2 + x * y % 3) % 2 === 0];
+    const penalty = () => { let p = 0;
+      for (let t = 0; t < 2; t++) for (let a = 0; a < sz; a++) { let run = 1; for (let b = 1; b < sz; b++) { const cur = t ? m[b][a] : m[a][b], prev = t ? m[b - 1][a] : m[a][b - 1]; if (cur === prev) { run++; if (run === 5) p += 3; else if (run > 5) p++; } else run = 1; } }
+      for (let y = 0; y < sz - 1; y++) for (let x = 0; x < sz - 1; x++) if (m[y][x] === m[y][x + 1] && m[y][x] === m[y + 1][x] && m[y][x] === m[y + 1][x + 1]) p += 3;
+      let dark = 0; m.forEach(r => r.forEach(c => { if (c) dark++; })); p += Math.floor(Math.abs(dark * 20 - sz * sz * 10) / (sz * sz)) * 10; return p; };
+    const flip = mk => { for (let y = 0; y < sz; y++) for (let x = 0; x < sz; x++) if (!fn[y][x] && masks[mk](x, y)) m[y][x] = !m[y][x]; };
+    let best = 0, bestP = Infinity;
+    for (let mk = 0; mk < 8; mk++) { flip(mk); fmt(mk); const p = penalty(); if (p < bestP) { bestP = p; best = mk; } flip(mk); }
+    flip(best); fmt(best);
+    return m;
+  };
+  const drawQR = (cv, text, px) => { const m = qrEncode(text), n = m.length, q = 4, sc = Math.floor(px / (n + q * 2)); cv.width = cv.height = sc * (n + q * 2); const g = cv.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, cv.width, cv.height); g.fillStyle = '#000'; for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) if (m[y][x]) g.fillRect((x + q) * sc, (y + q) * sc, sc, sc); };
+  const vnd = n => n.toLocaleString('vi-VN') + ' đ';
+  const renderSupport = () => {
+    drawQR($('supQR'), vietQRPayload(SUP.amt), 600);
+    $('supAmt').textContent = 'Gói ủng hộ: ' + vnd(SUP.amt);
+    $('supOpen').href = 'https://dl.vietqr.io/pay?app=mb&ba=' + SUP.acc + '@mbbank&am=' + SUP.amt + '&tn=' + encodeURIComponent(SUP.note) + '&bn=' + encodeURIComponent(SUP.name);
+    document.querySelectorAll('#support .tier').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.amt === SUP.amt)));
+  };
+  const openSupport = () => { $('about').classList.remove('on'); $('support').classList.add('on'); try { renderSupport(); } catch (e) { toast('Chưa tạo được mã, bạn thử lại nhé'); } };
+  document.querySelectorAll('#support .tier').forEach(b => b.onclick = () => { SUP.amt = +b.dataset.amt; renderSupport(); });
+  $('btnSupport').onclick = openSupport;
+  $('aboutSupport').onclick = openSupport;
+  $('supClose').onclick = () => $('support').classList.remove('on');
+  $('support').addEventListener('click', e => { if (e.target === $('support')) $('support').classList.remove('on'); });
+  $('supSave').onclick = () => {
+    const c = document.createElement('canvas'); c.width = 720; c.height = 860; const g = c.getContext('2d');
+    g.fillStyle = '#fff'; g.fillRect(0, 0, 720, 860);
+    const q = document.createElement('canvas'); drawQR(q, vietQRPayload(SUP.amt), 640); g.imageSmoothingEnabled = false; g.drawImage(q, 40, 90, 640, 640);
+    g.fillStyle = '#111'; g.textAlign = 'center'; g.font = '700 38px sans-serif'; g.fillText('Ủng hộ tác giả CueCam', 360, 60);
+    g.font = '600 34px sans-serif'; g.fillText(vnd(SUP.amt), 360, 780); g.font = '26px sans-serif'; g.fillStyle = '#444'; g.fillText('MB Bank · ' + SUP.acc + ' · ' + SUP.name, 360, 825);
+    c.toBlob(b => { if (!b) return toast('Chưa lưu được ảnh, bạn thử lại nhé'); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'cuecam-ung-ho-' + (SUP.amt / 1000) + 'k.png'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); toast('Đã tải mã QR về máy'); }, 'image/png');
+  };
   $('aboutClose').onclick = () => $('about').classList.remove('on');
   $('about').addEventListener('click', e => { if (e.target === $('about')) $('about').classList.remove('on'); });
   document.querySelectorAll('[data-copy]').forEach(b => b.onclick = () => {
