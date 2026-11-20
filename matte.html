@@ -47,7 +47,7 @@ a.btn { display: block; text-align: center; text-decoration: none; }
 <body>
 <main>
   <header><a href="./" aria-label="Về CueCam">‹</a><h1>Làm nét phông <span class="tag">thử nghiệm</span></h1></header>
-  <p class="lead">Chạy lại video đã quay bằng AI tách người loại nặng (tách tới từng sợi tóc, viền không rung). Chậm hơn lúc quay nhiều, nhưng video lưu ra đẹp hơn. Nên quay với <b>Phông nền: Tắt</b> rồi đưa video vào đây.</p>
+  <p class="lead">Xử lý lại video đã quay để viền người mịn hơn, tóc rõ hơn và không bị rung. Việc này chậm hơn lúc quay, bù lại video lưu ra đẹp hơn. Nên quay với <b>Phông nền: Tắt</b> rồi đưa video vào đây.</p>
 
   <section>
     <h2>1. Video</h2>
@@ -77,7 +77,7 @@ a.btn { display: block; text-align: center; text-decoration: none; }
 
   <section>
     <div class="row" style="margin-top:0">
-      <button id="bench" disabled>Đo thử 5 giây đầu</button>
+      <button id="bench" disabled>Thử 5 giây đầu</button>
       <button id="run" class="go" disabled>Xử lý cả video</button>
     </div>
     <div id="prog" class="hide">
@@ -103,13 +103,14 @@ a.btn { display: block; text-align: center; text-decoration: none; }
     <div class="info" id="resInfo"></div>
   </section>
 
-  <p class="small">Dùng mô hình Robust Video Matting (Lin và cộng sự, giấy phép GPL-3.0), ONNX Runtime Web và Mediabunny (MPL-2.0). Lần đầu tải khoảng 16 MB. Video không rời khỏi máy bạn.</p>
+  <p class="small">Video được xử lý ngay trên máy bạn, không gửi đi đâu.</p>
 </main>
 
 <script type="module">
 import * as MB from './lib/matte/mediabunny.min.mjs?v=1';
-import { createMatter, composite, makeBlurBg, makeStillBg } from './lib/matte/rvm.js?v=1';
+import { createMatter, composite, makeBlurBg, makeStillBg } from './lib/matte/rvm.js?v=2';
 
+const DEBUG = new URLSearchParams(location.search).has('debug');
 const $ = id => document.getElementById(id);
 const base = new URL('./lib/', location.href).href;
 const opt = { bg: 'blur', blur: 60, color: '#20324a', img: null, res: 1920 };
@@ -133,7 +134,7 @@ const outSize = () => {
 function showInfo() {
   if (!meta) return;
   const [W, H] = outSize();
-  $('vinfo').textContent = `${meta.w}×${meta.h} · ${fmtT(meta.dur)} · khoảng ${Math.round(meta.fps)} khung/giây · xuất ${W}×${H}`;
+  $('vinfo').textContent = `${meta.w}×${meta.h} · ${fmtT(meta.dur)} · xuất ${W}×${H}`;
 }
 
 $('file').onchange = async e => {
@@ -147,14 +148,22 @@ $('file').onchange = async e => {
     try { const st = await vt.computePacketStats(90); if (st.averagePacketRate) fps = st.averagePacketRate; } catch (e) {}
     meta = { w: vt.displayWidth, h: vt.displayHeight, dur, fps };
     showInfo(); $('run').disabled = $('bench').disabled = false;
-  } catch (err) { $('vinfo').innerHTML = '<span class="err">Không đọc được video: ' + (err.message || err) + '</span>'; }
+  } catch (err) { $('vinfo').innerHTML = '<span class="err">Không đọc được video này. Bạn thử chọn video khác nhé.</span>'; }
 };
 
 async function loadModel() {
   if (matter) return matter;
-  $('stats').textContent = 'Đang tải AI (lần đầu khoảng 16 MB)…';
+  $('stats').textContent = 'Đang chọn cấu hình phù hợp với máy của bạn. Vui lòng chờ trong giây lát.';
   matter = await createMatter(base);
   return matter;
+}
+async function verifyGpu(m, frameCanvas) {
+  if (m.checked || m.ep !== 'webgpu') return;
+  m.checked = true; $('stats').textContent = 'Đang chọn cấu hình phù hợp với máy của bạn. Vui lòng chờ trong giây lát.';
+  const W = frameCanvas.width, H = frameCanvas.height, k = 384 / Math.max(W, H), w = Math.round(W * k / 4) * 4, h = Math.round(H * k / 4) * 4;
+  const c = new OffscreenCanvas(w, h), x = c.getContext('2d', { willReadFrequently: true }); x.drawImage(frameCanvas, 0, 0, w, h);
+  const d = await m.verify(x.getImageData(0, 0, w, h).data, w, h);
+  console.log('RVM GPU vs CPU mean diff', d, '->', m.ep);
 }
 
 async function go(bench) {
@@ -187,6 +196,7 @@ async function go(bench) {
         process: async sample => {
           const f0 = performance.now(); if (!tStart) tStart = f0;
           sample.draw(wx, 0, 0, W, H);
+          if (!m.checked) { await verifyGpu(m, work); tStart = performance.now(); }
           const px = wx.getImageData(0, 0, W, H).data;
           const a0 = performance.now();
           const { fgr, pha } = await m.run(px, W, H);
@@ -198,16 +208,16 @@ async function go(bench) {
           if (frames % 3 === 1) {
             const el = (performance.now() - tStart) / 1000, fps = frames / el, left = Math.max(0, total - frames) / fps;
             $('barI').style.width = Math.min(100, frames / total * 100) + '%';
-            $('stats').innerHTML = `Khung ${frames}/${total} · <b>${fps.toFixed(1)} khung/giây</b> · còn khoảng ${fmtT(left)}`;
-            $('sub').textContent = `AI ${Math.round(aiMs / frames)} ms/khung · cả khung ${Math.round(allMs / frames)} ms · chạy bằng ${m.ep === 'webgpu' ? 'GPU (WebGPU)' : 'CPU (chậm)'}`;
+            $('stats').innerHTML = `Đã xử lý <b>${Math.min(100, Math.round(frames / total * 100))}%</b> · còn khoảng ${fmtT(left)}`;
+            if (DEBUG) $('sub').textContent = `AI ${Math.round(aiMs / frames)} ms/khung · cả khung ${Math.round(allMs / frames)} ms · chạy bằng ${m.ep === 'webgpu' ? 'GPU (WebGPU)' : m.ep === 'cpu-fallback' ? 'CPU (GPU máy này tính sai nên không dùng)' : 'CPU (chậm, máy không có WebGPU)'}`;
           }
           return outC;
         }
       },
       audio: aac ? { codec: 'aac' } : undefined
     });
-    if (!conv.isValid) throw new Error('Máy không mã hoá được video này (' + conv.discardedTracks.map(d => d.reason).join(', ') + ')');
-    $('stats').textContent = 'Đang bắt đầu…';
+    if (!conv.isValid) throw new Error('Máy chưa lưu được video này (' + conv.discardedTracks.map(d => d.reason).join(', ') + ')');
+    $('stats').textContent = 'Đang bắt đầu, vui lòng chờ trong giây lát…';
     await conv.execute();
     const el = (performance.now() - tStart) / 1000, fps = frames / el;
     outBlob = new Blob([output.target.buffer], { type: 'video/mp4' });
@@ -215,14 +225,14 @@ async function go(bench) {
     $('outVid').src = outUrl; $('save').href = outUrl;
     $('save').download = (file.name.replace(/\.[^.]+$/, '') || 'video') + (bench ? '-thu' : '') + '-phong.mp4';
     $('resBox').classList.remove('hide'); $('barI').style.width = '100%';
-    $('stats').innerHTML = `Xong ${frames} khung trong ${fmtT(el)} · <b>${fps.toFixed(1)} khung/giây</b>`;
+    $('stats').innerHTML = `Xong rồi! Mất ${fmtT(el)}.`;
     const whole = meta.dur * meta.fps / fps;
     $('resInfo').textContent = bench
-      ? `Với tốc độ này, cả video (${fmtT(meta.dur)}) sẽ mất khoảng ${fmtT(whole)}, tức ${(whole / meta.dur).toFixed(1)} lần độ dài video.`
-      : `Mất ${(el / meta.dur).toFixed(1)} lần độ dài video. Tệp ${(outBlob.size / 1048576).toFixed(1)} MB.`;
+      ? `Xử lý cả video (${fmtT(meta.dur)}) trên máy này sẽ mất khoảng ${fmtT(whole)}. Xem thử kết quả bên trên; ưng thì bấm “Xử lý cả video”.`
+      : 'Bấm “Lưu video” để lưu vào máy.';
   } catch (err) {
     if (err instanceof MB.ConversionCanceledError) $('msg').textContent = 'Đã dừng.';
-    else { console.error(err); $('msg').innerHTML = '<span class="err">Lỗi: ' + (err.message || err) + '</span>'; }
+    else { console.error(err); $('msg').innerHTML = '<span class="err">Chưa xử lý được video này trên máy của bạn. Bạn thử bản 720p hoặc video ngắn hơn nhé.</span>' + (DEBUG ? ' ' + (err.message || err) : ''); }
   } finally {
     conv = null; try { wake && wake.release(); } catch (e) {} wake = null;
     $('run').disabled = $('bench').disabled = false; $('cancelRow').classList.add('hide');
