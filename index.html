@@ -613,12 +613,12 @@ input[type=range] { width: 100%; accent-color: var(--cue); }
 </div>
 <div class="toast" id="toast"></div>
 
-<script src="lib/beauty.js?v=16"></script>
+<script src="lib/beauty.js?v=17"></script>
 <script>
 (() => {
   'use strict';
   const $ = id => document.getElementById(id);
-  const APP_VERSION = '19.11 · 16'; // shown in ⚙ and Liên hệ so Hoà can check the phone has the latest build
+  const APP_VERSION = '19.11 · 17'; // shown in ⚙ and Liên hệ so Hoà can check the phone has the latest build
   const store = {
     get(k, d) { try { const v = localStorage.getItem('cuecam.' + k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
     set(k, v) { try { localStorage.setItem('cuecam.' + k, JSON.stringify(v)); return true; } catch (e) { return false; } }
@@ -1482,7 +1482,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
   const camVideo = $('camVideo');
   function pickMime() {
     if (!window.MediaRecorder) return null;
-    const list = cam.kind === 'audio' ? ['audio/webm;codecs=opus', 'audio/mp4', 'audio/webm', 'audio/ogg'] : ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'];
+    const list = cam.kind === 'audio' ? ['audio/webm;codecs=opus', 'audio/mp4', 'audio/webm', 'audio/ogg'] : ['video/mp4;codecs=avc1.640028,mp4a.40.2', 'video/mp4;codecs=avc1.4D0028,mp4a.40.2', 'video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'];
     for (const m of list) { try { if (MediaRecorder.isTypeSupported(m)) return m; } catch (e) {} }
     return '';
   }
@@ -1863,7 +1863,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
     const mime = pickMime();
     if (mime === null) { setStatus('Trình duyệt này chưa hỗ trợ quay video.', 'warn'); return; }
     let r;
-    const opt = mime ? (cam.kind === 'audio' ? { mimeType: mime, audioBitsPerSecond: 128000 } : { mimeType: mime, videoBitsPerSecond: 6000000 }) : undefined;
+    const opt = mime ? (cam.kind === 'audio' ? { mimeType: mime, audioBitsPerSecond: 128000 } : { mimeType: mime, videoBitsPerSecond: 8000000 }) : undefined;
     try { r = new MediaRecorder(recStream, opt); }
     catch (e) { try { r = new MediaRecorder(recStream); } catch (e2) { setStatus('Không bắt đầu quay được.', 'warn'); return; } }
     cam.chunks = []; cam.rec = r;
