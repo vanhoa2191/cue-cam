@@ -618,7 +618,7 @@ input[type=range] { width: 100%; accent-color: var(--cue); }
 (() => {
   'use strict';
   const $ = id => document.getElementById(id);
-  const APP_VERSION = '19.11 · 17'; // shown in ⚙ and Liên hệ so Hoà can check the phone has the latest build
+  const APP_VERSION = '19.11 · 18'; // shown in ⚙ and Liên hệ so Hoà can check the phone has the latest build
   const store = {
     get(k, d) { try { const v = localStorage.getItem('cuecam.' + k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
     set(k, v) { try { localStorage.setItem('cuecam.' + k, JSON.stringify(v)); return true; } catch (e) { return false; } }
@@ -1490,7 +1490,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
   function vcon() {
     // Phones: ask for the full 4:3 sensor picture and never let Chrome crop-and-scale it (asking for 9:16 made
     // Android cut a narrow strip out of a landscape frame = looked zoomed in). We crop to the chosen frame ourselves.
-    const v = isMobile ? { width: { ideal: 1920 }, height: { ideal: 1440 }, resizeMode: 'none' }
+    const v = isMobile ? (aspect() === '3:4' ? { width: { ideal: 1920 }, height: { ideal: 1440 }, resizeMode: 'none' } : { width: { ideal: 1920 }, height: { ideal: 1080 }, resizeMode: 'none' }) // 16:9 sensor mode = same picture as the phone's own video camera, so a 9:16 take needs no crop and records straight from the camera
       : aspect() === '16:9' ? { width: { ideal: 1920 }, height: { ideal: 1080 }, aspectRatio: { ideal: 16 / 9 } }
       : { width: { ideal: 1440 }, height: { ideal: 1080 } };
     const o = Object.assign({ facingMode: { ideal: cam.facing }, frameRate: { ideal: 30 } }, v);
