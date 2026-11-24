@@ -1035,8 +1035,10 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
     if (!meter || !meter.an) startMeter(cam.stream);
     rhythm.on = true; rhythm.fidx = P.idx; rhythm.floor = null; rhythm.last = 0;
     voiceOn = true; markVoice();
-    if (hasWebSpeech) { hy.on = true; hy.lastWord = 0; hy.flatSince = 0; hy.words = false; startWebSpeech(true); }
-    setStatus('Đang quay: chữ chạy khi bạn nói và dừng khi bạn ngừng, theo nhịp ' + S.wpm + ' từ/phút (bấm − + để chỉnh). Điện thoại không cho nhận từng chữ trong lúc quay.', 'live');
+    if (hasWebSpeech && navigator.onLine !== false) { hy.on = true; hy.lastWord = 0; hy.flatSince = 0; hy.words = false; startWebSpeech(true); }
+    setStatus(navigator.onLine === false
+      ? 'Đang không có mạng: chữ chạy khi bạn nói và dừng khi bạn ngừng, theo nhịp ' + S.wpm + ' từ/phút (bấm − + để chỉnh).'
+      : 'Đang quay: chữ chạy khi bạn nói và dừng khi bạn ngừng, theo nhịp ' + S.wpm + ' từ/phút (bấm − + để chỉnh). Điện thoại không cho nhận từng chữ trong lúc quay.', 'live');
   }
   function rhythmStep(now, dt) {
     if (!rhythm.on || !meter || !meter.an) return;
@@ -1138,7 +1140,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
   }
   function startVoice() {
     finalTail = []; partialTail = []; resetHighlights(); P.target = P.pos;
-    if (cam.stream && isMobile) return startRhythm();
+    if (cam.stream && (isMobile || !navigator.onLine)) return startRhythm();
     if (hasWebSpeech && !inFrame) return startWebSpeech();
     if (dict) {
       setStatus('Đang bật micro…');
@@ -1161,7 +1163,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
       dismissed: 'Bạn chưa trả lời câu hỏi cấp quyền micro. Bấm lại để thử.',
       unavailable: 'Nhận giọng tiếng Việt chưa có ở đây. Hãy mở bản offline (file .html) bằng Chrome.',
       rate_limited: 'Dịch vụ nghe đang bận, thử lại sau ít giây.',
-      network: 'Nhận giọng nói cần mạng. Kiểm tra wifi hoặc 4G rồi bấm "Bắt đầu nghe" lại.',
+      network: 'Nhận giọng nói cần mạng. Kiểm tra wifi hoặc 4G rồi bấm "Bắt đầu nghe" lại. Không có mạng thì bật camera (chữ chạy theo nhịp nói) hoặc dùng chế độ Tự cuộn.',
       ios_siri: 'iPhone chỉ nghe được khi bật Siri và Đọc chính tả: vào Cài đặt > Cài đặt chung > Bàn phím > Bật Đọc chính tả, và Cài đặt > Siri. Nhớ mở CueCam bằng Safari (không mở từ biểu tượng ngoài màn hình chính).',
       audio_capture: 'Micro đang bị chiếm (có thể bởi camera đang quay hoặc app khác). Thử tắt camera rồi bấm "Bắt đầu nghe", hoặc cập nhật Chrome lên bản mới nhất.',
       lang: 'Máy này chưa có gói nhận giọng tiếng Việt. Trên Android: cài app Google, vào Cài đặt Google > Giọng nói > Ngôn ngữ, thêm Tiếng Việt.',
@@ -1597,7 +1599,7 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
     toast('Đã tìm lại micro: ' + $('micName').textContent);
   }
   async function onDeviceChange() {
-    if (!cam.stream) { knownMics = null; return; }
+    if (!cam.stream) { knownMics = null; refreshMics(); return; }
     const devs = await listMics(), ids = devs.map(d => d.deviceId);
     const added = devs.filter(d => knownMics && !knownMics.includes(d.deviceId) && d.deviceId !== 'default' && d.deviceId !== 'communications');
     const gone = S.micId && !ids.includes(S.micId);
@@ -1621,18 +1623,28 @@ Cảm ơn các bạn đã xem, hẹn gặp lại ở video sau!`,
       const AC = window.AudioContext || window.webkitAudioContext; if (!AC || !stream.getAudioTracks().length) return;
       const ctx = new AC(), src = ctx.createMediaStreamSource(stream), an = ctx.createAnalyser(); an.fftSize = 512; src.connect(an);
       const buf = new Uint8Array(an.fftSize), bar = $('micLevel').firstElementChild;
-      meter = { ctx, raf: 0, an, buf };
+      meter = { ctx, raf: 0, an, buf, peak: 0 };
       const loop = () => {
         an.getByteTimeDomainData(buf); let peak = 0;
         for (let k = 0; k < buf.length; k++) peak = Math.max(peak, Math.abs(buf[k] - 128));
+        meter.peak = Math.max(meter.peak, peak);
         bar.style.width = Math.min(100, peak / 64 * 100) + '%';
         meter.raf = requestAnimationFrame(loop);
       };
       if (ctx.state === 'suspended') ctx.resume().catch(() => {});
-      loop();
+      loop(); watchMicSilence(stream);
     } catch (e) { meter = null; }
   }
-  function stopMeter() { if (!meter) return; cancelAnimationFrame(meter.raf); try { meter.ctx.close(); } catch (e) {} meter = null; $('micLevel').firstElementChild.style.width = '0'; }
+  let micWatch = 0;
+  // an external mic that is "found" but sends no sound (common on phones): tell the user what to try, once per opening
+  function watchMicSilence(stream) {
+    clearTimeout(micWatch);
+    micWatch = setTimeout(() => {
+      if (!meter || cam.stream !== stream || cam.rec || meter.peak >= 2) return;
+      toast('Chưa nghe thấy tiếng từ micro. Hãy nói thử vài câu; nếu vạch mức vẫn đứng yên, cắm lại mic rồi bấm 🔄 hoặc chọn mic khác trong danh sách.');
+    }, 9000);
+  }
+  function stopMeter() { clearTimeout(micWatch); if (!meter) return; cancelAnimationFrame(meter.raf); try { meter.ctx.close(); } catch (e) {} meter = null; $('micLevel').firstElementChild.style.width = '0'; }
   $('cMic').addEventListener('change', e => switchMic(e.target.value));
   if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) navigator.mediaDevices.addEventListener('devicechange', () => { clearTimeout(onDeviceChange.t); onDeviceChange.t = setTimeout(onDeviceChange, 600); });
   $('cMicScan').onclick = rescanMics;
